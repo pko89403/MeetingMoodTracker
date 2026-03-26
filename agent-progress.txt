@@ -1,0 +1,11 @@
+# Agent Session Progress Log (agent-progress.txt)
+새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
+
+---
+## [2026-03-26] 하네스 인프라 확립, 기록 시스템, 초기 API 스켈레톤 구축
+- **수행 내역**:
+  1. 기계적 SDD 원칙에 입각한 AST 의존성 체커(`arch_checker.py`), 커스텀 에이전트 린터(`AgentWorkflowLinter`), 래퍼 러너(`agent_runner.py`)를 개발하여 하네스 구축.
+  2. 첫 번째 `/api/v1/analyze` 목적의 Pydantic 스키마(`mood.py`) 및 테스트 코드(`test_analyze.py`)를 통과하는 Fast API 뼈대 구현 완수.
+  3. "점진적 공개(Progressive Disclosure)" 원칙을 담은 `docs/` 기록 시스템(ARCHITECTURE, DESIGN, QUALITY_SCORE) 신설.
+  4. 루트 경로에 에이전트 내비게이션용 `AGENTS.md` (목차화), `feature_list.json`, `agent-progress.txt`, `init.sh` 구비 성공.
+- **다음 목표**: `feature_list.json`에 기재된 `feat_logic_topic_extraction` 기능(회의 텍스트를 실질적으로 분석하여 Topic을 도출하는 로직)의 개발.

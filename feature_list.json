@@ -1,0 +1,36 @@
+{
+  "project": "MeetingMoodTracker",
+  "comment": "에이전트 단일 기능 점진적 구현 지표. 한 번에 여러 개가 아닌 passes:false 인 최상단 기능만 목표로 개발합니다.",
+  "features": [
+    {
+      "id": "feat_system_harness",
+      "name": "Harness & Architecture Validation Environment",
+      "description": "Custom linter, AST structure checker, incremental agent runner.",
+      "passes": true
+    },
+    {
+      "id": "feat_system_of_record",
+      "name": "Progressive Disclosure System of Record (docs/)",
+      "description": "Establish docs/ repository for architecture, design, and history keeping.",
+      "passes": true
+    },
+    {
+      "id": "feat_analyze_skeleton",
+      "name": "Analysis API Skeleton (/api/v1/analyze)",
+      "description": "Basic SDD routing, dummy API to pass the ast validator and test client.",
+      "passes": true
+    },
+    {
+      "id": "feat_logic_topic_extraction",
+      "name": "Topic Extraction Logic",
+      "description": "Extract main context and discussion topics from meeting transcripts.",
+      "passes": false
+    },
+    {
+      "id": "feat_logic_mood_analysis",
+      "name": "Mood and Severity Analysis",
+      "description": "Assess severity (1-10) and mood parameters (constructive, tense, etc.) from transcript.",
+      "passes": false
+    }
+  ]
+}
