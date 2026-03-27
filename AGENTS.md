@@ -14,6 +14,8 @@ MeetingMoodTracker 프로젝트에 새로 진입한 에이전트를 위한 **최
 - **`docs/ARCHITECTURE.md`**: 하네스(린터/러너) 및 모듈 간의 의존성 구조 제약 조건.
 - **`docs/DESIGN.md`**: 도메인 목적 및 스펙 주도 개발(SDD) 원칙.
 - **`docs/QUALITY_SCORE.md`**: AST 리뷰어 및 린터(`AgentWorkflowLinter`)를 통과하기 위한 에이전트 코딩 가이드라인.
+- **`docs/AGENT_OPERATIONS_GUIDE.md`**: agent/skill/workflow 선택 우선순위와 FastAPI 표준 실행 순서.
+- **`docs/AGENT_CAPABILITY_CATALOG.md`**: `.agents`, `~/.codex`, `~/.agents` 기반 capability 인벤토리와 vendor 고정 현황.
 - **`docs/exec-plans/`**: 이전 스텝별 실행(리팩토링) 계획 이력.
 
 ## 🛠️ 3. 에이전트 역할 및 스킬 (`.agents/`)
@@ -22,5 +24,6 @@ MeetingMoodTracker 프로젝트에 새로 진입한 에이전트를 위한 **최
 - **`.agents/workflows/`**: (순차 절차) API 생성, 테스트 배포 등 복잡한 태스크를 오류 없이 처리하기 위한 Step-by-step 궤적(Trajectory) 가이드.
 - **`.agents/agents/`**: 프로젝트 내 역할별(Backend, Tester 등) 시스템/브라우저 접근 권한 및 제약 사항.
 - **`.agents/skills/`**: 주요 도메인 스킬 매뉴얼 및 에이전트가 자주 범하는 실수들을 방지하기 위한 `Gotchas(주의사항)`.
+- **`.agents/vendor/`**: 선별 복사로 고정한 외부 capability 스냅샷 및 manifest.
 
 > **[필수 제약]**: 아키텍처나 기능에 중대한 변경이 발생하면 반드시 연관된 `docs/` 시스템 문서를 함께 최신화(업데이트)해야 합니다.

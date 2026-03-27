@@ -7,7 +7,8 @@ MeetingMoodTracker 프로젝트의 품질은 자동화된 파이프라인에 의
 - **에러 발생:** Linter가 `AgentWorkflowLinter`를 통해 타입 힌트 누락을 잡아내면 코드 커밋을 거부하고 실패 처리합니다.
 
 ## 2. Pydantic 스키마 검증
-FastAPI의 모든 입출력 통신은 `app/schemas` 내의 Pydantic v2 모델을 통해서만 이루어져야 합니다. (하드코딩된 딕셔너리 리턴은 절대 금지됩니다.)
+FastAPI의 모든 입출력 통신은 `app/types` 내의 Pydantic 모델을 통해서만 이루어져야 합니다. (하드코딩된 딕셔너리 리턴은 절대 금지됩니다.)
+- `FastAPIContractValidator`가 runtime 라우트의 `response_model` 명시 여부와 `app/types` 경로 준수를 검사합니다.
 
 ## 3. 코드 스타일 포매팅
 - 본 프로젝트는 코드 포매팅과 정적 분석에 `Ruff`를 사용합니다.
@@ -15,4 +16,8 @@ FastAPI의 모든 입출력 통신은 `app/schemas` 내의 Pydantic v2 모델을
 - 단, 긴글이나 주석 처리 시 발생하는 줄바꿈 에러(`E501`)는 예외로 처리합니다.
 
 ## 4. 구조 침해 금지
-Service 레이어가 API 컨트롤러 레이어에 접근하려고 하면 즉시 AST 체커에 의해 에러가 발생합니다. 레이어 침범 시 역방향 의존성을 점검하고, 공통 모델 레이어(`schemas`)만을 참조하도록 구조를 리팩토링해야 합니다.
+Service 레이어가 API 컨트롤러 레이어에 접근하려고 하면 즉시 AST 체커에 의해 에러가 발생합니다. 레이어 침범 시 역방향 의존성을 점검하고, 공통 모델 레이어(`types`)만을 참조하도록 구조를 리팩토링해야 합니다.
+
+## 5. Capability Manifest 무결성
+- 프로젝트에 고정된 agent/skill vendor 자산은 `.agents/vendor/capability-manifest.json`을 통해 관리합니다.
+- manifest는 중복 ID/경로, 파일 존재 여부를 `scripts/validate_capability_manifest.py`로 검사합니다.

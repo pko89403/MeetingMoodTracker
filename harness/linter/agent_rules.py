@@ -23,6 +23,27 @@ class AgentWorkflowLinter:
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     # 매직 메서드 제외
                     if not node.name.startswith("__"):
+                        args = (
+                            list(node.args.posonlyargs)
+                            + list(node.args.args)
+                            + list(node.args.kwonlyargs)
+                        )
+                        if node.args.vararg:
+                            args.append(node.args.vararg)
+                        if node.args.kwarg:
+                            args.append(node.args.kwarg)
+
+                        for arg in args:
+                            if arg.arg in {"self", "cls"}:
+                                continue
+                            if arg.annotation is None:
+                                violations.append(
+                                    f"[Agent Linter Error] {file_path.relative_to(self.base_dir)}:{arg.lineno}\n"
+                                    f"  -> 함수 '{node.name}'의 파라미터 '{arg.arg}'에 타입 힌트가 없습니다.\n"
+                                    f"  [How to fix (Next Action)]: '{arg.arg}: SomeType' 형태로 타입을 명시하세요."
+                                )
+                                break
+
                         if node.returns is None:
                             violations.append(
                                 f"[Agent Linter Error] {file_path.relative_to(self.base_dir)}:{node.lineno}\n"
@@ -30,9 +51,12 @@ class AgentWorkflowLinter:
                                 f"  [How to fix (Next Action)]: 'def {node.name}(...) -> SomeType:' 형태로 반환 타입을 명시하세요."
                             )
 
-        except Exception:
-            # 기본 문법 에러는 여기서 잡지 않습니다.
-            pass
+        except Exception as exc:
+            violations.append(
+                f"[Agent Linter Error] {file_path.relative_to(self.base_dir)}:1\n"
+                f"  -> 파일 파싱 실패: {exc}\n"
+                f"  [How to fix (Next Action)]: 문법 오류를 수정한 뒤 다시 검증하세요."
+            )
 
         return violations
 

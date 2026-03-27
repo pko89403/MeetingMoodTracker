@@ -9,3 +9,17 @@
   3. "점진적 공개(Progressive Disclosure)" 원칙을 담은 `docs/` 기록 시스템(ARCHITECTURE, DESIGN, QUALITY_SCORE) 신설.
   4. 루트 경로에 에이전트 내비게이션용 `AGENTS.md` (목차화), `feature_list.json`, `agent-progress.txt`, `init.sh` 구비 성공.
 - **다음 목표**: `feature_list.json`에 기재된 `feat_logic_topic_extraction` 기능(회의 텍스트를 실질적으로 분석하여 Topic을 도출하는 로직)의 개발.
+---
+## [2026-03-27] Harness Engineering 고도화 (FastAPI 계약 강제 + Capability Vendor 고정)
+- **수행 내역**:
+  1. `FastAPIContractValidator`를 신규 도입하여 runtime 라우트의 반환 타입, `response_model`, `app/types` 기반 I/O, dict/list 직접 반환 금지 규칙을 기계적으로 강제.
+  2. `agent_runner.py`를 `precommit/full` 모드로 확장하고, 실행 순서를 `architecture -> fastapi-contract -> linter(custom+ruff) -> pytest(full only)`로 표준화.
+  3. `scripts/pre_commit_hook.sh`를 runner 단일 진입점으로 통합.
+  4. `.agents/vendor/`에 선별 capability(agents/skills) 스냅샷을 고정하고 `capability-manifest.json` + `validate_capability_manifest.py`로 무결성 검사 체계 구축.
+  5. `docs/AGENT_OPERATIONS_GUIDE.md`, `docs/AGENT_CAPABILITY_CATALOG.md` 신설 및 `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/QUALITY_SCORE.md` 문서 동기화.
+- **검증 결과**:
+  - `uv run ruff check .` 통과
+  - `uv run pytest tests -v --maxfail=1 --tb=short` 통과 (13 passed)
+  - `uv run python harness/runner/agent_runner.py --mode precommit` 통과
+  - `uv run python harness/runner/agent_runner.py --mode full` 통과
+  - `uv run python scripts/validate_capability_manifest.py` 통과

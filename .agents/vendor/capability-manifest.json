@@ -1,0 +1,127 @@
+{
+  "generated_at": "2026-03-27T00:52:18Z",
+  "policy": {
+    "strategy": "selective-copy",
+    "source_of_truth": ".agents/vendor",
+    "notes": "FastAPI/harness direct relevance only. Local-only enforcement."
+  },
+  "capabilities": [
+    {
+      "id": "agent_api_designer",
+      "type": "agent",
+      "name": "api-designer",
+      "source_path": "/Users/skiiwoo/.codex/agents/api-designer.toml",
+      "destination_path": ".agents/vendor/agents/api-designer.toml",
+      "version": "sha256:753de040b6ccfd6d1ef9078a5d74184f05f2095d13da2b308f86b5c7fb70c59b",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "agent_backend_developer",
+      "type": "agent",
+      "name": "backend-developer",
+      "source_path": "/Users/skiiwoo/.codex/agents/backend-developer.toml",
+      "destination_path": ".agents/vendor/agents/backend-developer.toml",
+      "version": "sha256:e80347b92612f6132a3591746a244bbf38d5002666e15d4972f302a1c963a781",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "agent_python_pro",
+      "type": "agent",
+      "name": "python-pro",
+      "source_path": "/Users/skiiwoo/.codex/agents/python-pro.toml",
+      "destination_path": ".agents/vendor/agents/python-pro.toml",
+      "version": "sha256:15cd17d8cbacd081d21fd820037f8a51a58d2bb81df6badacc945eff0cc7f76e",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "agent_test_automator",
+      "type": "agent",
+      "name": "test-automator",
+      "source_path": "/Users/skiiwoo/.codex/agents/test-automator.toml",
+      "destination_path": ".agents/vendor/agents/test-automator.toml",
+      "version": "sha256:a21903ed3b50361917030cd01b86efdd5cbfb24358bec5dedacfdd11f3f8ab55",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "agent_debugger",
+      "type": "agent",
+      "name": "debugger",
+      "source_path": "/Users/skiiwoo/.codex/agents/debugger.toml",
+      "destination_path": ".agents/vendor/agents/debugger.toml",
+      "version": "sha256:c00f048b5ce83be0e5b7c63939b267b61a37ca09a57ee74e8b341df8f2860f88",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "agent_code_reviewer",
+      "type": "agent",
+      "name": "code-reviewer",
+      "source_path": "/Users/skiiwoo/.codex/agents/code-reviewer.toml",
+      "destination_path": ".agents/vendor/agents/code-reviewer.toml",
+      "version": "sha256:22fc7cf352046dc3e9149d088d52ab73c7111ba3944ea4427343403d612b3648",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "agent_refactoring_specialist",
+      "type": "agent",
+      "name": "refactoring-specialist",
+      "source_path": "/Users/skiiwoo/.codex/agents/refactoring-specialist.toml",
+      "destination_path": ".agents/vendor/agents/refactoring-specialist.toml",
+      "version": "sha256:da11c15df5ecbaade007f2d7b0d63113dba5575da4c1d399771784e828826151",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "agent_nlp_engineer",
+      "type": "agent",
+      "name": "nlp-engineer",
+      "source_path": "/Users/skiiwoo/.codex/agents/nlp-engineer.toml",
+      "destination_path": ".agents/vendor/agents/nlp-engineer.toml",
+      "version": "sha256:12d70c8d71163c786b8a7839162ad5a185790b03c788dde413dd4190fd965655",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "skill_meeting_insights_analyzer",
+      "type": "skill",
+      "name": "meeting-insights-analyzer",
+      "source_path": ".agents/skills/meeting-insights-analyzer",
+      "destination_path": ".agents/vendor/skills/meeting-insights-analyzer",
+      "version": "sha256:2ee7403e6d32b40f312a508d7f95bf497e57d610cfdaf7d4167c9f18c01b7c9e",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "skill_meeting_notes_and_actions",
+      "type": "skill",
+      "name": "meeting-notes-and-actions",
+      "source_path": ".agents/skills/meeting-notes-and-actions",
+      "destination_path": ".agents/vendor/skills/meeting-notes-and-actions",
+      "version": "sha256:932eaf79198aba4322dca81bafe5fa0f1d00668b9b8b3f06918397b4a2d03f69",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "skill_notion_meeting_intelligence",
+      "type": "skill",
+      "name": "notion-meeting-intelligence",
+      "source_path": ".agents/skills/notion-meeting-intelligence",
+      "destination_path": ".agents/vendor/skills/notion-meeting-intelligence",
+      "version": "sha256:bad61faccbbe0f2cab53bcfbc4cb22f847ba8593ef14c2e37fea5b9b03346332",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "skill_notion_spec_to_implementation",
+      "type": "skill",
+      "name": "notion-spec-to-implementation",
+      "source_path": ".agents/skills/notion-spec-to-implementation",
+      "destination_path": ".agents/vendor/skills/notion-spec-to-implementation",
+      "version": "sha256:6e22c4c6df441e849fa6b4b825371b579c9bb4896f97bedca5f8536020427a81",
+      "copied_at": "2026-03-27T00:52:18Z"
+    },
+    {
+      "id": "skill_openai_docs",
+      "type": "skill",
+      "name": "openai-docs",
+      "source_path": "/Users/skiiwoo/.codex/skills/.system/openai-docs",
+      "destination_path": ".agents/vendor/skills/openai-docs",
+      "version": "sha256:8d8ed6246315074b8fe51e1251dd3e2ef42e54d8e9dff892c70acf88ab0e4235",
+      "copied_at": "2026-03-27T00:52:18Z"
+    }
+  ]
+}

@@ -5,8 +5,9 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
 
 ### 1. Harness Layer (에이전트 제어 및 검증)
 
-- **Agent Runner (`harness/runner/`)`: `pytest`를 한 번 실행하고 첫 번째 단일 실패 컨텍스트만 에이전트에게 반환하여 인지 부하를 줄이는 래퍼.
+- **Agent Runner (`harness/runner/`)**: `architecture -> fastapi-contract -> linter -> pytest` 순서로 검증하며, pre-commit에서는 `--mode precommit`으로 빠른 로컬 게이트를 수행합니다.
 - **Structural Validators (`harness/validators/`)**: AST(Abstract Syntax Tree) 분석을 통해, 허가되지 않은 모듈 간의 의존성 수입을 차단합니다.
+- **FastAPI Contract Validator (`harness/validators/fastapi_contract_checker.py`)**: runtime 라우트의 반환 타입, `response_model`, Pydantic I/O 경로(`app/types`) 준수 여부를 강제합니다.
 - **Custom Linters (`harness/linter/`)**: 에이전트가 작성한 파이썬 코드의 타입 힌트, 들여쓰기 컨벤션을 강제합니다.
 
 ### 2. Application Layer (FastAPI 서버 - 6단 고정 계층)
