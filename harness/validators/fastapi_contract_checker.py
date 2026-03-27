@@ -15,7 +15,9 @@ class FastAPIContractValidator:
         self.base_dir = Path(base_dir)
         self.runtime_dir = self.base_dir / "app" / "runtime"
 
-    def _resolve_relative_module(self, module_name: str, file_path: Path, level: int) -> str:
+    def _resolve_relative_module(
+        self, module_name: str, file_path: Path, level: int
+    ) -> str:
         if level == 0:
             return module_name
 
@@ -78,7 +80,9 @@ class FastAPIContractValidator:
             return set()
         return set()
 
-    def _resolve_import_paths(self, names: Set[str], import_map: Dict[str, str]) -> Set[str]:
+    def _resolve_import_paths(
+        self, names: Set[str], import_map: Dict[str, str]
+    ) -> Set[str]:
         resolved: Set[str] = set()
         for dotted in names:
             root, *rest = dotted.split(".")
@@ -132,7 +136,9 @@ class FastAPIContractValidator:
                     names = self._collect_name_paths(kw.value)
                     resolved = self._resolve_import_paths(names, import_map)
                     app_paths = {name for name in resolved if name.startswith("app.")}
-                    if not any(name.startswith(ALLOWED_IO_MODULE_PREFIX) for name in app_paths):
+                    if not any(
+                        name.startswith(ALLOWED_IO_MODULE_PREFIX) for name in app_paths
+                    ):
                         violations.append(
                             f"[FastAPI Contract Error] {relative_file}:{dec.lineno}\n"
                             f"  -> '{route_path}' 라우트의 response_model은 app/types 기반 모델이어야 합니다.\n"
@@ -161,7 +167,9 @@ class FastAPIContractValidator:
             )
 
         for node in ast.walk(fn_node):
-            if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict | ast.List):
+            if isinstance(node, ast.Return) and isinstance(
+                node.value, ast.Dict | ast.List
+            ):
                 violations.append(
                     f"[FastAPI Contract Error] {relative_file}:{node.lineno}\n"
                     f"  -> '{route_path}' 라우트에서 dict/list 리터럴을 직접 반환하고 있습니다.\n"
@@ -188,7 +196,8 @@ class FastAPIContractValidator:
             forbidden = [
                 name
                 for name in resolved
-                if name.startswith("app.") and not name.startswith(ALLOWED_IO_MODULE_PREFIX)
+                if name.startswith("app.")
+                and not name.startswith(ALLOWED_IO_MODULE_PREFIX)
             ]
             if forbidden:
                 violations.append(

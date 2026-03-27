@@ -98,7 +98,9 @@ def run(mode: str, base_dir: Path | None = None) -> int:
         return 1
 
     if mode == "precommit":
-        print("\n✅ pre-commit 하네스 검증(Architecture + FastAPI + Linter)을 통과했습니다.\n")
+        print(
+            "\n✅ pre-commit 하네스 검증(Architecture + FastAPI + Linter)을 통과했습니다.\n"
+        )
         return 0
 
     print(">> [4/4] 비즈니스 스펙(Pytest) 검증 중...")
@@ -123,7 +125,9 @@ def run(mode: str, base_dir: Path | None = None) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="MeetingMoodTracker agent harness runner")
+    parser = argparse.ArgumentParser(
+        description="MeetingMoodTracker agent harness runner"
+    )
     parser.add_argument(
         "--mode",
         choices=["precommit", "full"],
