@@ -15,3 +15,10 @@
 - `POST /api/v1/analyze`:
   - Request: `MeetingAnalyzeRequest` (meeting_id, transcript_text)
   - Response: `MeetingAnalyzeResponse` (overall_mood, topics, severity)
+- `GET /api/env/v1`:
+  - Purpose: LLM 연동에 필요한 환경설정 조회 (read-only)
+  - Source: `APP_ENV` 기준 `dev.env` 또는 `prod.env` 파일
+  - Response: `LLM_API_KEY`, `LLM_ENDPOINT`, `LLM_MODEL` 원문 값
+  - Errors:
+    - `422`: 필수 키 누락
+    - `500`: env 파일 누락 또는 `APP_ENV` 값 오류
