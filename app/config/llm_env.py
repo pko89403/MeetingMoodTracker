@@ -1,3 +1,5 @@
+"""`APP_ENV`에 맞는 env 파일을 선택하고 값을 로드하는 유틸리티."""
+
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -9,10 +11,12 @@ ENV_FILE_BY_APP_ENV: dict[str, str] = {
 
 
 def get_project_root() -> Path:
+    """프로젝트 루트 경로를 반환한다."""
     return Path(__file__).resolve().parents[2]
 
 
 def resolve_app_env(app_env_raw: str | None) -> str:
+    """입력된 `APP_ENV` 값을 검증하고 기본값(`dev`)을 적용한다."""
     if app_env_raw is None or app_env_raw == "":
         return "dev"
 
@@ -26,6 +30,7 @@ def resolve_app_env(app_env_raw: str | None) -> str:
 
 
 def resolve_env_file_path(project_root: Path, app_env: str) -> Path:
+    """환경 이름(`dev`/`prod`)에 해당하는 env 파일 절대경로를 만든다."""
     env_file_name = ENV_FILE_BY_APP_ENV[app_env]
     return project_root / env_file_name
 
@@ -33,6 +38,7 @@ def resolve_env_file_path(project_root: Path, app_env: str) -> Path:
 def load_env_file_values(
     project_root: Path, app_env_raw: str | None
 ) -> dict[str, str | None]:
+    """선택된 env 파일을 읽어 키-값 매핑으로 반환한다."""
     app_env = resolve_app_env(app_env_raw=app_env_raw)
     env_file_path = resolve_env_file_path(project_root=project_root, app_env=app_env)
 

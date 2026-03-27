@@ -30,13 +30,13 @@
       "id": "feat_logic_mood_analysis",
       "name": "Mood and Severity Analysis",
       "description": "Assess severity (1-10) and mood parameters (constructive, tense, etc.) from transcript.",
-      "passes": false
+      "passes": true
     },
     {
       "id": "feat_config_llm_env_management",
       "name": "LLM Config and Environment File Management",
       "description": "Provide read-only API to load LLM config from dev/prod env files and validate required keys.",
-      "passes": false
+      "passes": true
     }
   ]
 }

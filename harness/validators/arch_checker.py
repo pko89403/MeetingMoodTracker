@@ -16,7 +16,13 @@ class ArchitectureValidator:
         # 헌법 (Project Constitution Rules)
         # 단방향 의존성 헌법: Types <- Config <- Repo <- Service <- Runtime <- UI
         self.forbidden_imports = {
-            "app/types": ["app.config", "app.repo", "app.service", "app.runtime", "app.ui"],
+            "app/types": [
+                "app.config",
+                "app.repo",
+                "app.service",
+                "app.runtime",
+                "app.ui",
+            ],
             "app/config": ["app.repo", "app.service", "app.runtime", "app.ui"],
             "app/repo": ["app.service", "app.runtime", "app.ui"],
             "app/service": ["app.runtime", "app.ui"],

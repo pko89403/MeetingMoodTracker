@@ -37,3 +37,30 @@
   - `uv run ruff check .` 통과
   - `uv run pytest tests -v --maxfail=1 --tb=short` 통과 (18 passed)
   - `uv run python harness/runner/agent_runner.py --mode full` 통과
+---
+## [2026-03-27] 턴 단위 감정분류 API 추가 (`POST /api/v1/sentiment/turn`) + Azure OpenAI SDK 연동
+- **수행 내역**:
+  1. `app/types/sentiment.py`에 턴 단위 요청/응답 스키마를 정의하고 라벨 집합을 `POS/NEG/NEUTRAL`로 고정.
+  2. `app/service/sentiment_service.py`에서 OpenAI Python SDK(`AzureOpenAI`) 기반 감정 분류 로직 구현:
+     - env 키(`LLM_API_KEY`, `LLM_ENDPOINT`, `LLM_MODEL_NAME`, `LLM_DEPLOYMENT_NAME`) 로딩
+     - `chat.completions.create(..., response_format=json_schema)` 강제
+     - JSON 파싱 및 Pydantic 스키마 검증 실패 시 도메인 예외 처리
+  3. `app/runtime/sentiment.py` 라우터 및 `app/main.py` 라우터 등록으로 신규 API 오픈.
+  4. `app/types/llm_config.py`, `app/service/llm_config_service.py`, `tests/test_env_config.py`, `example.env`를 신 env 키 계약으로 전환 (`LLM_MODEL_VERSION` optional).
+  5. 오프라인 품질 평가용 `scripts/evaluate_sentiment_with_judge.py` 배치 스크립트 추가.
+  6. `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`, `feature_list.json` 동기화.
+- **검증 결과**:
+  - `uv run ruff check .` 통과
+  - `uv run pytest tests -v --maxfail=1 --tb=short` 통과 (25 passed)
+  - `uv run python harness/runner/agent_runner.py --mode full` 통과
+---
+## [2026-03-27] Azure API 버전 설정 분리 (`LLM_API_VERSION`) 반영
+- **수행 내역**:
+  1. `LLM_MODEL_VERSION`(모델 메타)와 `LLM_API_VERSION`(Azure OpenAI API 스펙 버전)을 분리하여 혼동을 제거.
+  2. `app/types/llm_config.py`, `app/service/llm_config_service.py`에 `LLM_API_VERSION(optional)` 필드를 추가.
+  3. `app/service/sentiment_service.py`, `scripts/evaluate_sentiment_with_judge.py`가 `LLM_API_VERSION`을 우선 사용하고 미설정 시 기본값 `2025-04-01-preview`를 사용하도록 변경.
+  4. `example.env`, `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`, `tests/test_env_config.py`, `tests/test_sentiment_service.py` 동기화.
+- **검증 결과**:
+  - `uv run ruff check .` 통과
+  - `uv run pytest tests -v --maxfail=1 --tb=short` 통과 (27 passed)
+  - `uv run python harness/runner/agent_runner.py --mode full` 통과
