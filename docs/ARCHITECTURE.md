@@ -21,6 +21,12 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
 - **`app/ui/`**: (최상위) 프론트엔드 연동 및 템플릿 서빙
 - **`app/main.py`**: 단지 서버를 구동(Boot)하는 진입점 모듈
 
+### LLM Config Read Flow
+
+- `app/runtime/env_config.py`의 `GET /api/env/v1` 라우트가 진입점입니다.
+- `app/service/llm_config_service.py`가 필수 키(`LLM_API_KEY`, `LLM_ENDPOINT`, `LLM_MODEL`) 검증 및 오류 분기(422/500)를 담당합니다.
+- `app/config/llm_env.py`가 `APP_ENV(dev|prod)` 기준 env 파일(`dev.env`/`prod.env`)을 선택하고 로드합니다.
+
 ## Dependency Rules (단방향 헌법)
 
 - 모듈 의존성은 반드시 **`Types <- Config <- Repo <- Service <- Runtime <- UI`** 의 단방향 논리로만 흘러야 합니다.

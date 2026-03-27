@@ -23,3 +23,17 @@
   - `uv run python harness/runner/agent_runner.py --mode precommit` 통과
   - `uv run python harness/runner/agent_runner.py --mode full` 통과
   - `uv run python scripts/validate_capability_manifest.py` 통과
+---
+## [2026-03-27] LLM 설정/환경변수 관리 API 추가 (`GET /api/env/v1`)
+- **수행 내역**:
+  1. `app/config/llm_env.py`를 신설하여 `python-dotenv` 기반 env 파일 로더 구현 (`APP_ENV=dev|prod`, 기본값 `dev`).
+  2. `app/service/llm_config_service.py`를 신설하여 필수 키(`LLM_API_KEY`, `LLM_ENDPOINT`, `LLM_MODEL`) 검증 및 예외 도메인화(검증 실패/로딩 실패) 적용.
+  3. `app/types/llm_config.py` 응답 스키마와 `app/runtime/env_config.py` 라우트를 추가하고, `app/main.py`에 라우터 연결.
+  4. `tests/test_env_config.py`에 신규 5개 테스트를 추가하여 dev/prod 분기, 원문값 반환, 422/500 에러 경로를 검증.
+  5. `.gitignore`(`dev.env`, `prod.env`), `example.env`, `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`, `feature_list.json`을 동기화.
+  6. `pyproject.toml`, `uv.lock`에 `python-dotenv` 의존성 반영.
+- **검증 결과**:
+  - `uv run ruff format app/ tests/ docs/` 통과
+  - `uv run ruff check .` 통과
+  - `uv run pytest tests -v --maxfail=1 --tb=short` 통과 (18 passed)
+  - `uv run python harness/runner/agent_runner.py --mode full` 통과
