@@ -10,4 +10,5 @@ class LlmConfigResponse(BaseModel):
     LLM_ENDPOINT: str
     LLM_MODEL_NAME: str
     LLM_DEPLOYMENT_NAME: str
+    LLM_API_VERSION: str | None = None
     LLM_MODEL_VERSION: str | None = None

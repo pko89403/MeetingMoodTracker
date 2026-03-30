@@ -23,8 +23,40 @@ A FastAPI-based application that analyzes meeting transcripts to identify discus
 
 ## Codex IDE Actions
 
-- `FastAPI 실행`: `./scripts/run_api.sh`
+- `FastAPI 실행`: `FASTAPI_SERVER_PORT=18000 ./scripts/run_api.sh`
 - `Streamlit 실행`: `./scripts/run_ui.sh`
+
+## Parent Compose 기반 Docker 실행 (서브모듈 대상)
+
+- 이 저장소는 `docker-compose.yml`을 직접 제공하지 않고, 상위 리포지토리에서 포함할 템플릿을 제공합니다.
+- 템플릿 위치: `docs/templates/docker-compose.parent.api.yml`
+- 기본 환경변수:
+  - `APP_ENV` (기본값: `dev`, `dev.env`/`prod.env` 선택)
+  - `FASTAPI_SERVER_PORT` (기본값: `8000`)
+  - `MEETING_MOOD_TRACKER_SUBMODULE_PATH` (기본값: `./MeetingMoodTracker`)
+- 상위 리포지토리에서 사용할 때는 템플릿 내용을 상위 `docker-compose.yml`에 반영하거나 include하여 사용합니다.
+- 템플릿은 `APP_ENV` 값에 맞춰 `${APP_ENV}.env`를 `env_file`과 컨테이너 내부 `/app/${APP_ENV}.env`에 함께 연결합니다.
+
+대표 실행 예시(상위 리포지토리 루트 기준):
+
+```bash
+export APP_ENV=dev
+export FASTAPI_SERVER_PORT=18000
+export MEETING_MOOD_TRACKER_SUBMODULE_PATH=./MeetingMoodTracker
+docker compose up --build
+```
+
+`prod` 실행 예시:
+
+```bash
+export APP_ENV=prod
+export FASTAPI_SERVER_PORT=18000
+export MEETING_MOOD_TRACKER_SUBMODULE_PATH=./MeetingMoodTracker
+docker compose up --build
+```
+
+검증:
+- 브라우저에서 `http://localhost:${FASTAPI_SERVER_PORT}/docs` 접근
 
 ## Turn Sentiment API
 
@@ -54,7 +86,8 @@ A FastAPI-based application that analyzes meeting transcripts to identify discus
   - `LLM_ENDPOINT`
   - `LLM_MODEL_NAME`
   - `LLM_DEPLOYMENT_NAME`
-  - `LLM_MODEL_VERSION` (optional, sentiment service API version source)
+  - `LLM_API_VERSION` (optional, Azure OpenAI API version)
+  - `LLM_MODEL_VERSION` (optional, 모델 메타데이터 및 API version fallback)
 - Error behavior:
   - `422` if required keys are missing
   - `500` if env file is missing or `APP_ENV` is invalid
@@ -91,7 +124,7 @@ A FastAPI-based application that analyzes meeting transcripts to identify discus
 ## Streamlit 테스트 UI
 
 - 실행 전제:
-  - FastAPI 서버 실행: `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+  - FastAPI 서버 실행: `FASTAPI_SERVER_PORT=8000 ./scripts/run_api.sh`
 - Streamlit 실행:
   - `./scripts/run_ui.sh`
   - 또는 `ANALYZE_API_BASE_URL=http://localhost:8000 uv run streamlit run app/ui/analyze_console.py`
@@ -107,6 +140,7 @@ A FastAPI-based application that analyzes meeting transcripts to identify discus
 
 - Azure OpenAI 리소스 네트워크 정책(VNet/Firewall)이 닫혀 있으면 감정분류 호출이 실패합니다.
 - 자해/자살 관련 문구 등은 Azure Content Filter 정책에 의해 차단될 수 있습니다.
+- Azure API 버전은 `LLM_API_VERSION`을 우선 사용하고, 미설정 시에만 `LLM_MODEL_VERSION`으로 fallback합니다.
 
 Use `example.env` as the template. Keep `dev.env` and `prod.env` local only.
 
@@ -123,6 +157,13 @@ Use `example.env` as the template. Keep `dev.env` and `prod.env` local only.
 - Issue 식별 방식:
   - 본문 마커: `<!-- feature_id:feat_xxx -->`
   - 제목 패턴 fallback: `[feat_xxx] ...`
+- 선택 확장 필드(`feature_list.json`):
+  - `issue_rule.objective`: 이슈의 작업 목표(문단)
+  - `issue_rule.in_scope` / `issue_rule.out_of_scope`: 범위/비범위 항목
+  - `issue_rule.implementation_checklist`: 구현 체크리스트
+  - `issue_rule.verification`: 검증 시나리오
+  - `issue_rule.done_criteria`(또는 `acceptance_criteria`): 완료 조건
+- `issue_rule`가 존재하면 신규 Issue 본문 생성 시 위 섹션이 자동 삽입됩니다.
 
 대표 실행 예시:
 

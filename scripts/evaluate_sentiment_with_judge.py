@@ -38,11 +38,12 @@ JUDGE_RESPONSE_SCHEMA: dict[str, Any] = {
 
 
 def _resolve_api_version(cfg: LlmConfigResponse) -> str:
-    """모델 설정에서 API 버전을 가져오고 없으면 기본 버전을 사용한다."""
-    api_version = cfg.LLM_MODEL_VERSION
-    if api_version is None or api_version.strip() == "":
-        return DEFAULT_AZURE_OPENAI_API_VERSION
-    return api_version
+    """모델 설정에서 API 버전을 우선순위에 따라 선택한다."""
+    if cfg.LLM_API_VERSION is not None and cfg.LLM_API_VERSION.strip() != "":
+        return cfg.LLM_API_VERSION
+    if cfg.LLM_MODEL_VERSION is not None and cfg.LLM_MODEL_VERSION.strip() != "":
+        return cfg.LLM_MODEL_VERSION
+    return DEFAULT_AZURE_OPENAI_API_VERSION
 
 
 def _build_client(cfg: LlmConfigResponse) -> AzureOpenAI:

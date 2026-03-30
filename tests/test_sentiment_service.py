@@ -60,6 +60,7 @@ def _mock_llm_config() -> LlmConfigResponse:
         LLM_ENDPOINT="https://aoai.example.azure.com",
         LLM_MODEL_NAME="gpt-5-mini",
         LLM_DEPLOYMENT_NAME="gpt-5-mini",
+        LLM_API_VERSION=None,
         LLM_MODEL_VERSION="2025-08-07",
     )
 
@@ -126,8 +127,16 @@ def test_classify_turn_sentiment_raises_on_llm_call_error(monkeypatch) -> None:
         classify_turn_sentiment(request=_sample_request())
 
 
-def test_resolve_api_version_uses_env_value_when_present() -> None:
+def test_resolve_api_version_prefers_llm_api_version_when_present() -> None:
     cfg = _mock_llm_config()
+    cfg.LLM_API_VERSION = "2025-04-01-preview"
+    cfg.LLM_MODEL_VERSION = "2025-08-07"
+    assert _resolve_api_version(llm_config=cfg) == "2025-04-01-preview"
+
+
+def test_resolve_api_version_falls_back_to_model_version_when_api_version_missing() -> None:
+    cfg = _mock_llm_config()
+    cfg.LLM_API_VERSION = None
     cfg.LLM_MODEL_VERSION = "2025-08-07"
     assert _resolve_api_version(llm_config=cfg) == "2025-08-07"
 

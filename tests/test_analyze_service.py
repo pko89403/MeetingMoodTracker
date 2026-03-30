@@ -4,8 +4,10 @@ import pytest
 
 import app.service.analyze_service as analyze_service
 from app.service.analyze_service import (
+    DEFAULT_AZURE_OPENAI_API_VERSION,
     AnalyzeInferenceError,
     _normalize_sentiment_confidences,
+    _resolve_api_version,
     analyze_sentiment_with_llm,
     extract_topics_with_llm,
     preprocess_for_topic,
@@ -73,6 +75,7 @@ def _mock_llm_config() -> LlmConfigResponse:
         LLM_ENDPOINT="https://aoai.example.azure.com",
         LLM_MODEL_NAME="gpt-5-mini",
         LLM_DEPLOYMENT_NAME="gpt-5-mini",
+        LLM_API_VERSION=None,
         LLM_MODEL_VERSION="2025-08-07",
     )
 
@@ -219,6 +222,30 @@ def test_run_analyze_pipeline_raises_when_second_stage_call_fails(monkeypatch) -
         run_analyze_pipeline(request=_sample_request())
 
     assert exc_info.value.stage == "sentiment"
+
+
+def test_resolve_api_version_prefers_llm_api_version_when_present() -> None:
+    cfg = _mock_llm_config()
+    cfg.LLM_API_VERSION = "2025-04-01-preview"
+    cfg.LLM_MODEL_VERSION = "2025-08-07"
+
+    assert _resolve_api_version(llm_config=cfg) == "2025-04-01-preview"
+
+
+def test_resolve_api_version_falls_back_to_model_version_when_api_version_missing() -> None:
+    cfg = _mock_llm_config()
+    cfg.LLM_API_VERSION = None
+    cfg.LLM_MODEL_VERSION = "2025-08-07"
+
+    assert _resolve_api_version(llm_config=cfg) == "2025-08-07"
+
+
+def test_resolve_api_version_uses_default_when_all_config_missing() -> None:
+    cfg = _mock_llm_config()
+    cfg.LLM_API_VERSION = None
+    cfg.LLM_MODEL_VERSION = None
+
+    assert _resolve_api_version(llm_config=cfg) == DEFAULT_AZURE_OPENAI_API_VERSION
 
 
 def test_normalize_sentiment_confidence_sum_is_100_for_equal_input() -> None:

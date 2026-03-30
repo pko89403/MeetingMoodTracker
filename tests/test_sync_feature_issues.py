@@ -91,3 +91,32 @@ def test_write_issue_metadata_returns_false_when_unchanged() -> None:
 
     assert changed is False
     assert feature["github_issue"]["synced_at"] == "2026-03-30T00:00:00+00:00"
+
+
+def test_build_issue_body_with_issue_rule() -> None:
+    feature = {
+        "id": "feat_ops_dockerize",
+        "description": "Run FastAPI/Streamlit in a reproducible Docker environment.",
+        "passes": False,
+        "issue_rule": {
+            "objective": "로컬/CI에서 동일한 컨테이너 실행 기준을 제공한다.",
+            "in_scope": ["멀티 스테이지 Dockerfile", "docker-compose 기반 로컬 실행"],
+            "out_of_scope": ["쿠버네티스 배포", 123],
+            "implementation_checklist": ["헬스체크 추가", "env 파일 로딩 방식 정리"],
+            "verification": ["docker compose up 후 /docs 접근 확인"],
+            "done_criteria": ["README에 실행 방법 반영", ""],
+        },
+    }
+
+    body = sync.build_issue_body(feature)
+
+    assert "<!-- feature_id:feat_ops_dockerize -->" in body
+    assert "## 작업 목표" in body
+    assert "## 범위 (In Scope)" in body
+    assert "## 비범위 (Out of Scope)" in body
+    assert "## 구현 체크리스트" in body
+    assert "## 검증 시나리오" in body
+    assert "## 완료 조건 (Definition of Done)" in body
+    assert "- 쿠버네티스 배포" in body
+    assert "- 123" not in body
+    assert "- source: feature_list.json" in body
