@@ -58,8 +58,8 @@
       "github_issue": {
         "number": 7,
         "url": "https://github.com/pko89403/MeetingMoodTracker/issues/7",
-        "state": "open",
-        "synced_at": "2026-03-30T02:38:39+00:00"
+        "state": "closed",
+        "synced_at": "2026-03-30T06:42:42+00:00"
       }
     },
     {
@@ -84,6 +84,38 @@
         "url": "https://github.com/pko89403/MeetingMoodTracker/issues/9",
         "state": "closed",
         "synced_at": "2026-03-30T02:38:42+00:00"
+      }
+    },
+    {
+      "id": "feat_ops_dockerize",
+      "name": "Dockerize Runtime Baseline",
+      "description": "FastAPI API 서버와 Streamlit 테스트 UI를 Docker 환경에서 동일하게 실행할 수 있도록 컨테이너 표준 실행 경로를 구축합니다.",
+      "passes": false,
+      "issue_rule": {
+        "objective": "개발자 로컬/CI에서 동일한 컨테이너 실행 결과를 재현한다.",
+        "in_scope": [
+          "FastAPI + Streamlit 실행에 필요한 Dockerfile 및 docker-compose 구성",
+          "dev.env 기반 환경변수 주입 방식 정의",
+          "README 실행 절차와 트러블슈팅 문서화"
+        ],
+        "out_of_scope": [
+          "Kubernetes/ECS 등 프로덕션 오케스트레이션 배포",
+          "Azure 인프라 프로비저닝 변경"
+        ],
+        "implementation_checklist": [
+          "빌드 캐시를 고려한 멀티 스테이지 Dockerfile 적용",
+          "API(8000)/UI(8501) 포트 노출 및 healthcheck 설정",
+          "`.venv` 의존 없이 `uv sync --locked` 기반 이미지 빌드 보장"
+        ],
+        "verification": [
+          "`docker compose up --build` 후 API `/docs` 정상 노출",
+          "Streamlit UI에서 Analyze 호출 성공",
+          "컨테이너 재시작 시 동일 설정으로 재현 가능"
+        ],
+        "done_criteria": [
+          "로컬 개발자가 README만으로 Docker 실행 가능",
+          "하네스/pytest 실행 경로가 Docker 사용 시에도 깨지지 않음"
+        ]
       }
     }
   ]

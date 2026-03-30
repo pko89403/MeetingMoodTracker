@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  meeting-mood-tracker-api:
+    build:
+      context: ${MEETING_MOOD_TRACKER_SUBMODULE_PATH:-./MeetingMoodTracker}
+      dockerfile: docker/Dockerfile.api
+    env_file:
+      - ${MEETING_MOOD_TRACKER_SUBMODULE_PATH:-./MeetingMoodTracker}/dev.env
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      FASTAPI_SERVER_PORT: ${FASTAPI_SERVER_PORT:-8000}
+    # 앱이 dev.env 파일을 직접 읽는 구조이므로 파일 경로도 컨테이너에 동일하게 마운트한다.
+    volumes:
+      - ${MEETING_MOOD_TRACKER_SUBMODULE_PATH:-./MeetingMoodTracker}/dev.env:/app/dev.env:ro
+    ports:
+      - "${FASTAPI_SERVER_PORT:-8000}:${FASTAPI_SERVER_PORT:-8000}"
+    command:
+      - /bin/sh
+      - -c
+      - uv run uvicorn app.main:app --host 0.0.0.0 --port ${FASTAPI_SERVER_PORT:-8000}

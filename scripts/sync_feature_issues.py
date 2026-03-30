@@ -131,15 +131,78 @@ def extract_feature_id_from_issue(title: str, body: str | None) -> str | None:
     return None
 
 
+def _normalize_issue_rule_items(value: Any) -> list[str]:
+    """issue_rule 배열 필드를 공백 제거된 문자열 목록으로 정규화한다."""
+    if not isinstance(value, list):
+        return []
+
+    normalized: list[str] = []
+    for item in value:
+        if isinstance(item, str):
+            stripped = item.strip()
+            if stripped:
+                normalized.append(stripped)
+    return normalized
+
+
+def _append_issue_rule_section(*, lines: list[str], title: str, items: list[str]) -> None:
+    """issue_rule 섹션을 본문에 조건부로 추가한다."""
+    if not items:
+        return
+    lines.extend(["", f"## {title}"])
+    lines.extend([f"- {item}" for item in items])
+
+
 def build_issue_body(feature: dict[str, Any]) -> str:
     """신규 Issue 생성 시 사용할 본문을 만든다."""
     feature_id = feature["id"]
     description = feature.get("description", "")
-    return "\n".join(
+    lines = [
+        f"<!-- feature_id:{feature_id} -->",
+        "## 목적",
+        description if description else "feature_list.json 기준 기능 추적",
+    ]
+
+    issue_rule = feature.get("issue_rule")
+    if isinstance(issue_rule, dict):
+        objective = issue_rule.get("objective")
+        if isinstance(objective, str) and objective.strip():
+            lines.extend(["", "## 작업 목표", objective.strip()])
+
+        _append_issue_rule_section(
+            lines=lines,
+            title="범위 (In Scope)",
+            items=_normalize_issue_rule_items(issue_rule.get("in_scope")),
+        )
+        _append_issue_rule_section(
+            lines=lines,
+            title="비범위 (Out of Scope)",
+            items=_normalize_issue_rule_items(issue_rule.get("out_of_scope")),
+        )
+        _append_issue_rule_section(
+            lines=lines,
+            title="구현 체크리스트",
+            items=_normalize_issue_rule_items(issue_rule.get("implementation_checklist")),
+        )
+        _append_issue_rule_section(
+            lines=lines,
+            title="검증 시나리오",
+            items=_normalize_issue_rule_items(issue_rule.get("verification")),
+        )
+
+        done_criteria = _normalize_issue_rule_items(issue_rule.get("done_criteria"))
+        if not done_criteria:
+            done_criteria = _normalize_issue_rule_items(
+                issue_rule.get("acceptance_criteria")
+            )
+        _append_issue_rule_section(
+            lines=lines,
+            title="완료 조건 (Definition of Done)",
+            items=done_criteria,
+        )
+
+    lines.extend(
         [
-            f"<!-- feature_id:{feature_id} -->",
-            "## 목적",
-            description if description else "feature_list.json 기준 기능 추적",
             "",
             "## 동기화 기준",
             "- source: feature_list.json",
@@ -147,6 +210,7 @@ def build_issue_body(feature: dict[str, Any]) -> str:
             f"- passes: `{feature.get('passes')}`",
         ]
     )
+    return "\n".join(lines)
 
 
 def github_request(

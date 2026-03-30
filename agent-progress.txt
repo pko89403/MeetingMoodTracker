@@ -2,6 +2,34 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-03-30] Dockerize 구현 (Parent Compose 템플릿 + FASTAPI_SERVER_PORT 가변)
+- **수행 내역**:
+  1. `docker/Dockerfile.api`를 추가하여 `uv sync --locked --no-dev` 기반 API 컨테이너 이미지를 구성.
+  2. `.dockerignore`를 추가해 `.venv`, 캐시, 테스트/문서 산출물, 로컬 env 파일을 빌드 컨텍스트에서 제외.
+  3. `scripts/run_api.sh`에 `FASTAPI_SERVER_PORT`(기본 8000) 입력 및 포트값 검증(숫자/1~65535)을 추가.
+  4. 상위 리포지토리 연동용 템플릿 `docs/templates/docker-compose.parent.api.yml`를 추가:
+     - `MEETING_MOOD_TRACKER_SUBMODULE_PATH` 기반 `build.context`/`env_file` 참조
+     - `FASTAPI_SERVER_PORT` 기반 포트 매핑/컨테이너 실행 포트 동기화
+     - 앱이 `dev.env` 파일을 직접 로드하는 구조를 위해 `dev.env -> /app/dev.env` 읽기 전용 마운트 반영
+  5. `README.md`, `docs/AGENT_OPERATIONS_GUIDE.md`에 parent compose 템플릿 사용법 및 신규 환경변수 계약을 문서화.
+- **검증 결과**:
+  - `bash -n scripts/run_api.sh` 통과
+  - `.venv/bin/python -m ruff check .` 통과
+  - `.venv/bin/python harness/runner/agent_runner.py --mode precommit` 통과
+  - `.venv/bin/python harness/runner/agent_runner.py --mode full` 통과 (51 passed)
+  - `docker build -f docker/Dockerfile.api .` 실패: 실행 환경에 `docker` 바이너리가 없어 검증 불가 (`command not found`)
+---
+## [2026-03-30] Dockerize 작업용 Issue Rule 템플릿 추가
+- **수행 내역**:
+  1. `feature_list.json`에 신규 기능 `feat_ops_dockerize`(`passes: false`)를 추가하고, Dockerize 작업 범위/비범위/체크리스트/검증/완료조건을 담는 `issue_rule`을 정의.
+  2. `scripts/sync_feature_issues.py`의 `build_issue_body`를 확장하여 `issue_rule` 필드를 GitHub Issue 본문 섹션으로 자동 렌더링하도록 구현.
+  3. `tests/test_sync_feature_issues.py`에 `issue_rule` 렌더링 테스트를 추가해 비문자 항목 필터링과 섹션 생성을 회귀 검증.
+  4. `README.md`, `docs/AGENT_OPERATIONS_GUIDE.md`에 `issue_rule` 확장 필드 운영 규칙을 문서화.
+- **검증 결과**:
+  - `.venv/bin/python -m ruff check scripts/sync_feature_issues.py tests/test_sync_feature_issues.py` 통과
+  - `.venv/bin/python -m pytest tests/test_sync_feature_issues.py -q` 통과 (6 passed)
+  - `.venv/bin/python scripts/sync_feature_issues.py --create-missing --sync-state` 통과 (dry-run에서 `feat_ops_dockerize` 생성 예정 확인)
+---
 ## [2026-03-30] Analyze 응답 `mood/confidence` -> `sentiment` 구조로 브레이킹 전환
 - **수행 내역**:
   1. `app/types/mood.py`에서 `AnalyzeResponse`를 `topic + sentiment` 구조로 교체:
