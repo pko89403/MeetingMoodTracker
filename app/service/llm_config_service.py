@@ -66,6 +66,10 @@ def get_llm_config(
 
     required_values = _extract_required_values(values=loaded_values)
 
+    api_version = loaded_values.get("LLM_API_VERSION")
+    if api_version is not None and api_version.strip() != "":
+        required_values["LLM_API_VERSION"] = api_version
+
     model_version = loaded_values.get("LLM_MODEL_VERSION")
     if model_version is not None and model_version.strip() != "":
         required_values["LLM_MODEL_VERSION"] = model_version

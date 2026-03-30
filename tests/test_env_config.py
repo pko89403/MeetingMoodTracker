@@ -29,6 +29,7 @@ def test_get_llm_config_uses_dev_file_when_app_env_is_unset(
             "LLM_ENDPOINT": "https://dev.endpoint",
             "LLM_MODEL_NAME": "gpt-5-mini",
             "LLM_DEPLOYMENT_NAME": "gpt-5-mini",
+            "LLM_API_VERSION": "2025-04-01-preview",
             "LLM_MODEL_VERSION": "2025-08-07",
         },
     )
@@ -43,6 +44,7 @@ def test_get_llm_config_uses_dev_file_when_app_env_is_unset(
         "LLM_ENDPOINT": "https://dev.endpoint",
         "LLM_MODEL_NAME": "gpt-5-mini",
         "LLM_DEPLOYMENT_NAME": "gpt-5-mini",
+        "LLM_API_VERSION": "2025-04-01-preview",
         "LLM_MODEL_VERSION": "2025-08-07",
     }
 
@@ -72,6 +74,7 @@ def test_get_llm_config_uses_prod_file_when_app_env_is_prod(
         "LLM_ENDPOINT": "https://prod.endpoint",
         "LLM_MODEL_NAME": "gpt-5.4",
         "LLM_DEPLOYMENT_NAME": "gpt-5.4-prod",
+        "LLM_API_VERSION": None,
         "LLM_MODEL_VERSION": None,
     }
 

@@ -33,7 +33,7 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
 - `app/service/sentiment_service.py`가 OpenAI Python SDK의 `AzureOpenAI` 클라이언트를 구성합니다.
 - 호출 규약:
   - `chat.completions.create(model=LLM_DEPLOYMENT_NAME, response_format={"type":"json_schema", ...})`
-  - API Version: `LLM_MODEL_VERSION`을 우선 사용, 없으면 기본값 `2025-04-01-preview`
+  - API Version: `LLM_API_VERSION` 우선, 없으면 `LLM_MODEL_VERSION`, 둘 다 없으면 기본값 `2025-04-01-preview`
 - 분류 결과는 `app/types/sentiment.py`의 `TurnSentimentResponse`로 검증 후 반환됩니다.
 
 ### Analyze Inspect Flow (REST + SSE)

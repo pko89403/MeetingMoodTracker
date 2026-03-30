@@ -31,13 +31,25 @@ A FastAPI-based application that analyzes meeting transcripts to identify discus
 - 이 저장소는 `docker-compose.yml`을 직접 제공하지 않고, 상위 리포지토리에서 포함할 템플릿을 제공합니다.
 - 템플릿 위치: `docs/templates/docker-compose.parent.api.yml`
 - 기본 환경변수:
+  - `APP_ENV` (기본값: `dev`, `dev.env`/`prod.env` 선택)
   - `FASTAPI_SERVER_PORT` (기본값: `8000`)
   - `MEETING_MOOD_TRACKER_SUBMODULE_PATH` (기본값: `./MeetingMoodTracker`)
 - 상위 리포지토리에서 사용할 때는 템플릿 내용을 상위 `docker-compose.yml`에 반영하거나 include하여 사용합니다.
+- 템플릿은 `APP_ENV` 값에 맞춰 `${APP_ENV}.env`를 `env_file`과 컨테이너 내부 `/app/${APP_ENV}.env`에 함께 연결합니다.
 
 대표 실행 예시(상위 리포지토리 루트 기준):
 
 ```bash
+export APP_ENV=dev
+export FASTAPI_SERVER_PORT=18000
+export MEETING_MOOD_TRACKER_SUBMODULE_PATH=./MeetingMoodTracker
+docker compose up --build
+```
+
+`prod` 실행 예시:
+
+```bash
+export APP_ENV=prod
 export FASTAPI_SERVER_PORT=18000
 export MEETING_MOOD_TRACKER_SUBMODULE_PATH=./MeetingMoodTracker
 docker compose up --build
@@ -74,7 +86,8 @@ docker compose up --build
   - `LLM_ENDPOINT`
   - `LLM_MODEL_NAME`
   - `LLM_DEPLOYMENT_NAME`
-  - `LLM_MODEL_VERSION` (optional, sentiment service API version source)
+  - `LLM_API_VERSION` (optional, Azure OpenAI API version)
+  - `LLM_MODEL_VERSION` (optional, 모델 메타데이터 및 API version fallback)
 - Error behavior:
   - `422` if required keys are missing
   - `500` if env file is missing or `APP_ENV` is invalid
@@ -127,6 +140,7 @@ docker compose up --build
 
 - Azure OpenAI 리소스 네트워크 정책(VNet/Firewall)이 닫혀 있으면 감정분류 호출이 실패합니다.
 - 자해/자살 관련 문구 등은 Azure Content Filter 정책에 의해 차단될 수 있습니다.
+- Azure API 버전은 `LLM_API_VERSION`을 우선 사용하고, 미설정 시에만 `LLM_MODEL_VERSION`으로 fallback합니다.
 
 Use `example.env` as the template. Keep `dev.env` and `prod.env` local only.
 
