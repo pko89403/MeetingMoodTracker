@@ -17,6 +17,14 @@
 - `POST /api/v1/analyze`:
   - Request: `AnalyzeRequest` (meeting_id, text)
   - Response: `AnalyzeResponse` (topic, mood, confidence)
+- `POST /api/v1/analyze/inspect`:
+  - Purpose: Streamlit/디버그 UI 용도로 analyze 결과 + 내부 추적 정보(로직 단계, 실행 로그)를 함께 반환
+  - Request: `AnalyzeRequest`
+  - Response: `AnalyzeInspectResponse` (request_id, result, logic_steps, logs)
+- `POST /api/v1/analyze/inspect/stream`:
+  - Purpose: analyze 과정을 SSE로 실시간 표시
+  - Content-Type: `text/event-stream`
+  - Event Sequence: `start -> log* -> result -> done` (실패 시 `error`)
 - `POST /api/v1/sentiment/turn`:
   - Purpose: 발화 턴 단위 감정 분류 (`POS`/`NEG`/`NEUTRAL`)
   - Request: `TurnSentimentRequest` (meeting_id, turn_id, speaker_id?, utterance_text)
@@ -33,3 +41,8 @@
     - `500`: env 파일 누락 또는 `APP_ENV` 값 오류
   - 오류 응답 상세:
     - `detail.error_code` + `message_ko` + `message_en` + 상황별 부가 필드(`missing_keys`, `reason`)
+
+## Analyze 알고리즘 일관성 규칙
+
+- `/api/v1/analyze`, `/api/v1/analyze/inspect`, `/api/v1/analyze/inspect/stream`는 반드시 동일한 서비스 메서드(`run_analyze_pipeline`)를 호출해야 합니다.
+- 라우트별 차이는 출력 포맷(기본 결과만 반환 vs trace 포함 vs SSE 이벤트 변환)에 한정합니다.

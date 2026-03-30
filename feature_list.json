@@ -21,6 +21,12 @@
       "passes": true
     },
     {
+      "id": "feat_ui_analyze_inspect_streamlit",
+      "name": "Analyze Inspect Streamlit Console",
+      "description": "Add inspect REST/SSE endpoints and Streamlit UI for request/result/logic/log visualization.",
+      "passes": true
+    },
+    {
       "id": "feat_logic_topic_extraction",
       "name": "Topic Extraction Logic",
       "description": "Extract main context and discussion topics from meeting transcripts.",

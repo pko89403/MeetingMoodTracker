@@ -94,3 +94,42 @@ def test_fastapi_contract_validator_forbids_non_types_io_models(tmp_path: Path) 
     validator = FastAPIContractValidator(base_dir=str(tmp_path))
     violations = validator.validate()
     assert any("app/types 외 경로" in v for v in violations)
+
+
+def test_fastapi_contract_validator_allows_whitelisted_sse_route(
+    tmp_path: Path,
+) -> None:
+    _write_runtime_file(
+        tmp_path=tmp_path,
+        code=(
+            "from fastapi import APIRouter\n"
+            "from fastapi.responses import StreamingResponse\n"
+            "from app.types.mood import AnalyzeRequest\n\n"
+            "router = APIRouter()\n\n"
+            "@router.post('/analyze/inspect/stream', response_class=StreamingResponse)\n"
+            "def inspect_stream(request: AnalyzeRequest) -> StreamingResponse:\n"
+            "    return StreamingResponse(iter(['event: done\\\\ndata: {}\\\\n\\\\n']), media_type='text/event-stream')\n"
+        ),
+    )
+    validator = FastAPIContractValidator(base_dir=str(tmp_path))
+    assert validator.validate() == []
+
+
+def test_fastapi_contract_validator_rejects_sse_route_without_streaming_response_class(
+    tmp_path: Path,
+) -> None:
+    _write_runtime_file(
+        tmp_path=tmp_path,
+        code=(
+            "from fastapi import APIRouter\n"
+            "from fastapi.responses import StreamingResponse\n"
+            "from app.types.mood import AnalyzeRequest\n\n"
+            "router = APIRouter()\n\n"
+            "@router.post('/analyze/inspect/stream')\n"
+            "def inspect_stream(request: AnalyzeRequest) -> StreamingResponse:\n"
+            "    return StreamingResponse(iter(['event: done\\\\ndata: {}\\\\n\\\\n']), media_type='text/event-stream')\n"
+        ),
+    )
+    validator = FastAPIContractValidator(base_dir=str(tmp_path))
+    violations = validator.validate()
+    assert any("response_class=StreamingResponse" in v for v in violations)

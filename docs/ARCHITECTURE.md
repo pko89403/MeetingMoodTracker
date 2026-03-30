@@ -7,7 +7,7 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
 
 - **Agent Runner (`harness/runner/`)**: `architecture -> fastapi-contract -> linter -> pytest` 순서로 검증하며, pre-commit에서는 `--mode precommit`으로 빠른 로컬 게이트를 수행합니다.
 - **Structural Validators (`harness/validators/`)**: AST(Abstract Syntax Tree) 분석을 통해, 허가되지 않은 모듈 간의 의존성 수입을 차단합니다.
-- **FastAPI Contract Validator (`harness/validators/fastapi_contract_checker.py`)**: runtime 라우트의 반환 타입, `response_model`, Pydantic I/O 경로(`app/types`) 준수 여부를 강제합니다.
+- **FastAPI Contract Validator (`harness/validators/fastapi_contract_checker.py`)**: runtime 라우트의 반환 타입, `response_model`, Pydantic I/O 경로(`app/types`) 준수 여부를 강제하며, 허용 경로의 SSE(`text/event-stream`)만 제한적으로 예외 허용합니다.
 - **Custom Linters (`harness/linter/`)**: 에이전트가 작성한 파이썬 코드의 타입 힌트, 들여쓰기 컨벤션을 강제합니다.
 
 ### 2. Application Layer (FastAPI 서버 - 6단 고정 계층)
@@ -35,6 +35,18 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
   - `chat.completions.create(model=LLM_DEPLOYMENT_NAME, response_format={"type":"json_schema", ...})`
   - API Version: `LLM_MODEL_VERSION`을 우선 사용, 없으면 기본값 `2025-04-01-preview`
 - 분류 결과는 `app/types/sentiment.py`의 `TurnSentimentResponse`로 검증 후 반환됩니다.
+
+### Analyze Inspect Flow (REST + SSE)
+
+- `app/service/analyze_service.py`의 `run_analyze_pipeline`이 `/analyze`, `/analyze/inspect`, `/analyze/inspect/stream`이 공통으로 호출하는 단일 알고리즘 메서드입니다.
+- `POST /api/v1/analyze`:
+  - 공통 파이프라인 결과에서 `AnalyzeResponse`만 반환해 기존 계약을 유지합니다.
+- `POST /api/v1/analyze/inspect`:
+  - 공통 파이프라인 결과에서 `request_id`, `logic_steps`, `logs`, `result`를 함께 반환합니다.
+- `POST /api/v1/analyze/inspect/stream`:
+  - 공통 파이프라인 결과를 `start -> log* -> result -> done` SSE 이벤트로 변환해 전달합니다.
+- analyze 실행 로그는 서비스 레이어의 메모리 링버퍼(`maxlen=200`)에도 저장됩니다.
+- Streamlit UI(`app/ui/analyze_console.py`)는 기본적으로 SSE 경로를 사용하고, 실패 시 REST inspect 경로로 폴백합니다.
 
 ## Dependency Rules (단방향 헌법)
 

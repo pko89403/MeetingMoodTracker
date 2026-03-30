@@ -8,6 +8,21 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
 - 회의 발화 입력은 한국어를 우선 지원하며, 한/영 혼합 발화도 지원합니다.
 - 코드 식별자는 영어를 유지하고, 문서/설명/docstring은 한국어 중심으로 관리합니다.
 
+## Worktree 셋업
+
+- 기본 셋업 스크립트: `scripts/setup_worktree.sh`
+- 동작:
+  - `UV_PROJECT_ENVIRONMENT=.venv` 기준으로 가상환경 생성/재사용
+  - `uv sync --locked`로 의존성 동기화
+  - 현재 worktree에 `dev.env`/`prod.env`가 없으면, `main` branch worktree를 찾아 동일 파일을 복사
+- 보안 주의:
+  - `dev.env`, `prod.env`는 로컬 전용 파일이며 Git에 커밋하지 않습니다.
+
+## Codex IDE Actions
+
+- `FastAPI 실행`: `./scripts/run_api.sh`
+- `Streamlit 실행`: `./scripts/run_ui.sh`
+
 ## Turn Sentiment API
 
 - Endpoint: `POST /api/v1/sentiment/turn`
@@ -41,6 +56,34 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
   - `422` if required keys are missing
   - `500` if env file is missing or `APP_ENV` is invalid
   - 오류 응답 `detail`에는 `error_code`, `message_ko`, `message_en`가 포함됩니다.
+
+## Analyze Inspect APIs
+
+- 기존 유지:
+  - `POST /api/v1/analyze` (`AnalyzeRequest -> AnalyzeResponse`)
+- 신규 inspect REST:
+  - `POST /api/v1/analyze/inspect`
+  - 반환: `request_id`, `result`, `logic_steps`, `logs`
+- 신규 inspect SSE:
+  - `POST /api/v1/analyze/inspect/stream` (`text/event-stream`)
+  - 이벤트 순서: `start -> log* -> result -> done` (오류 시 `error`)
+- 구현 원칙:
+  - `/analyze`와 `/inspect`는 동일한 서비스 메서드 `run_analyze_pipeline`을 호출합니다.
+  - analyze 로그는 메모리 링버퍼(`maxlen=200`)에 저장됩니다.
+
+## Streamlit 테스트 UI
+
+- 실행 전제:
+  - FastAPI 서버 실행: `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+- Streamlit 실행:
+  - `./scripts/run_ui.sh`
+  - 또는 `ANALYZE_API_BASE_URL=http://localhost:8000 uv run streamlit run app/ui/analyze_console.py`
+- UI 동작:
+  - 기본 모드: SSE(`/api/v1/analyze/inspect/stream`) 사용
+  - 실패 시 fallback: inspect REST(`/api/v1/analyze/inspect`)
+  - `화면 Clear`: 현재 표시 중인 결과/에러를 초기화
+  - `히스토리 삭제`: 저장된 요청 히스토리를 전체 삭제
+  - 요청 성공 시 최신 30건 히스토리 자동 저장 및 재조회(`표시할 결과 선택`)
 
 ## 운영 시 유의사항
 
