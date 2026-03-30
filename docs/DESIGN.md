@@ -16,7 +16,7 @@
 ## 핵심 API
 - `POST /api/v1/analyze`:
   - Request: `AnalyzeRequest` (meeting_id, text)
-  - Response: `AnalyzeResponse` (topic, mood, confidence)
+  - Response: `AnalyzeResponse` (topic, sentiment)
 - `POST /api/v1/analyze/inspect`:
   - Purpose: Streamlit/디버그 UI 용도로 analyze 결과 + 내부 추적 정보(로직 단계, 실행 로그)를 함께 반환
   - Request: `AnalyzeRequest`
@@ -46,3 +46,19 @@
 
 - `/api/v1/analyze`, `/api/v1/analyze/inspect`, `/api/v1/analyze/inspect/stream`는 반드시 동일한 서비스 메서드(`run_analyze_pipeline`)를 호출해야 합니다.
 - 라우트별 차이는 출력 포맷(기본 결과만 반환 vs trace 포함 vs SSE 이벤트 변환)에 한정합니다.
+
+## Topic Extraction 설계
+
+- Analyze는 Topic과 Sentiment를 분리한 2-stage LLM 파이프라인을 사용합니다.
+- Stage 1(`extract_topics_with_llm`):
+  - 입력: 전처리된 회의 텍스트
+  - 출력: JSON structured `topics: string[]`
+  - 모델 추론 강도: `reasoning_effort=none`
+- Stage 2(`analyze_sentiment_with_llm`):
+  - 입력: 원문 텍스트 + Stage 1의 topics
+  - 출력: JSON structured `sentiment.positive/negative/neutral`
+  - 모델 추론 강도: `reasoning_effort=minimal`
+- 최종 응답 `topic`은 topics 리스트를 `", "`로 결합한 문자열입니다.
+- 최종 응답 `sentiment`는 `positive/negative/neutral` 3축 confidence를 포함합니다.
+- confidence는 정수 퍼센트(`0~100`)이며, 서버가 Largest Remainder 방식으로 정규화해 합계 100을 보장합니다.
+- fallback은 사용하지 않으며, 어느 단계에서든 LLM 호출/파싱/검증 실패 시 요청 전체를 502로 실패 처리합니다.

@@ -1,6 +1,6 @@
 # Meeting Mood Tracker
 
-A FastAPI-based application that analyzes meeting transcripts to accurately identify conversation topics and overall participant moods. Built strictly with Specification-Driven Development (SDD) principles.
+A FastAPI-based application that analyzes meeting transcripts to identify discussion topics and sentiment distribution. Built strictly with Specification-Driven Development (SDD) principles.
 
 ## 한국어 우선 개발 가이드
 
@@ -74,6 +74,20 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
   - `/analyze`와 `/inspect`는 동일한 서비스 메서드 `run_analyze_pipeline`을 호출합니다.
   - analyze 로그는 메모리 링버퍼(`maxlen=200`)에 저장됩니다.
 
+## Topic Extraction Logic
+
+- Analyze는 LLM 기반 2-stage 파이프라인으로 동작합니다.
+  - Stage 1: `extract_topics_with_llm` (JSON structured `topics: string[]`, `reasoning_effort=none`)
+  - Stage 2: `analyze_sentiment_with_llm` (JSON structured `sentiment.positive/negative/neutral`, `reasoning_effort=minimal`)
+- Stage 2는 Stage 1의 topic 리스트와 원문 텍스트를 함께 입력으로 사용합니다.
+- 최종 `topic` 응답값은 topic 리스트를 `", "`로 결합한 문자열입니다.
+- 최종 `sentiment`는 아래 구조를 사용합니다.
+  - `sentiment.positive.confidence`
+  - `sentiment.negative.confidence`
+  - `sentiment.neutral.confidence`
+- 각 confidence는 정수 퍼센트(`0~100`)이며, 세 값의 합은 서버에서 항상 `100`으로 정규화됩니다.
+- 두 단계 중 하나라도 LLM 호출/파싱/스키마 검증에 실패하면 `/api/v1/analyze`와 `/api/v1/analyze/inspect`는 `502`를 반환합니다.
+
 ## Streamlit 테스트 UI
 
 - 실행 전제:
@@ -83,6 +97,7 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
   - 또는 `ANALYZE_API_BASE_URL=http://localhost:8000 uv run streamlit run app/ui/analyze_console.py`
 - UI 동작:
   - 기본 모드: SSE(`/api/v1/analyze/inspect/stream`) 사용
+  - SSE 모드에서 `log` 이벤트 수신 즉시 실행 로그/결과 미리보기를 화면에 실시간 갱신
   - 실패 시 fallback: inspect REST(`/api/v1/analyze/inspect`)
   - `화면 Clear`: 현재 표시 중인 결과/에러를 초기화
   - `히스토리 삭제`: 저장된 요청 히스토리를 전체 삭제

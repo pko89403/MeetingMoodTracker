@@ -2,6 +2,60 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-03-30] Analyze 응답 `mood/confidence` -> `sentiment` 구조로 브레이킹 전환
+- **수행 내역**:
+  1. `app/types/mood.py`에서 `AnalyzeResponse`를 `topic + sentiment` 구조로 교체:
+     - `sentiment.positive.confidence`
+     - `sentiment.negative.confidence`
+     - `sentiment.neutral.confidence`
+  2. `AnalyzeSentiment` 모델에 합계 100 검증을 추가하여 타입 레벨에서도 일관성을 강제.
+  3. `app/service/analyze_service.py` Stage 2를 `analyze_sentiment_with_llm`로 전환하고 JSON schema를 sentiment 3축 구조로 변경.
+  4. 서버 정규화 로직(`_normalize_sentiment_confidences`)을 추가해 음수 클램프 + Largest Remainder + tie-break(positive -> negative -> neutral)로 정수 퍼센트 합계 100을 보장.
+  5. 런타임/inspect/SSE 경로가 새 `AnalyzeResponse` 스키마를 그대로 전달하도록 연동.
+  6. Streamlit 결과 패널에 sentiment 분포 요약 테이블을 추가해 `result.sentiment`를 명시적으로 표시.
+  7. 테스트(`tests/test_analyze.py`, `tests/test_analyze_inspect.py`, `tests/test_analyze_service.py`, `tests/architecture/test_fastapi_contracts.py`)를 전면 갱신.
+- **문서 반영**:
+  - `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`에 새 응답 계약(`sentiment`)과 합계 100 정규화 규칙을 반영.
+- **검증 결과**:
+  - `.venv/bin/python -m ruff check .` 통과
+  - `.venv/bin/python -m pytest tests -v --maxfail=1 --tb=short` 통과 (50 passed)
+  - `.venv/bin/python harness/runner/agent_runner.py --mode full` 통과
+---
+## [2026-03-30] Streamlit SSE 중간 결과 실시간 렌더링 적용
+- **수행 내역**:
+  1. `app/ui/analyze_console.py`에 SSE 이벤트 제너레이터(`_iter_sse_events`)를 도입해 이벤트를 순차 소비하도록 개선.
+  2. `_call_inspect_sse_with_live_render`를 추가해 `start/log/result/done` 이벤트 수신 시점마다 Streamlit placeholder를 즉시 갱신.
+  3. 기존 SSE 실패 시 REST fallback 동작은 유지하고, 성공 시에는 기존처럼 최종 응답을 히스토리에 저장.
+- **검증 결과**:
+  - `.venv/bin/python -m ruff check app/ui/analyze_console.py` 통과
+  - `.venv/bin/python -m pytest tests -v --maxfail=1 --tb=short` 통과 (47 passed)
+  - `.venv/bin/python harness/runner/agent_runner.py --mode full` 통과
+---
+## [2026-03-30] Analyze 2-Stage LLM 전환 (Topic ↔ Mood/Confidence 분리 + reasoning_effort 분리)
+- **수행 내역**:
+  1. `app/service/analyze_service.py`를 2-stage LLM 오케스트레이션으로 재구성.
+     - Stage 1: `extract_topics_with_llm` (`response_format=json_schema`, `reasoning_effort=none`)
+     - Stage 2: `analyze_mood_confidence_with_llm` (`response_format=json_schema`, `reasoning_effort=minimal`)
+  2. 토픽 단계 전처리 함수 `preprocess_for_topic`을 추가(정규표현식 기반 불용어 제거/공백 정리).
+  3. 토픽/분위기 단계의 structured 출력 검증 타입을 `app/types/analyze_llm.py`로 분리.
+  4. `/api/v1/analyze`, `/api/v1/analyze/inspect`에서 `AnalyzeInferenceError`를 `502`(`ANALYZE_LLM_FAILURE`)로 매핑.
+  5. 최종 `AnalyzeResponse.topic`은 topics 리스트를 `\", \"`로 결합해 반환하도록 통일.
+  6. 신규 테스트 `tests/test_analyze_service.py`를 추가하여 단계별 추론 강도/프롬프트/실패 케이스를 검증.
+  7. 런타임 테스트(`tests/test_analyze.py`, `tests/test_analyze_inspect.py`)를 2-stage/502 정책 기준으로 갱신.
+- **문서 반영**:
+  - `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`를 2-stage LLM + 단계별 `reasoning_effort` 정책으로 동기화.
+---
+## [2026-03-30] Topic Extraction Logic 구현 완료 (`feat_logic_topic_extraction`)
+- **수행 내역**:
+  1. `app/service/analyze_service.py`의 `_infer_topic`을 고정값 반환에서 규칙 기반 키워드 스코어링 방식으로 전환.
+  2. 한국어/영어 키워드를 함께 탐지하고, 영문 키워드는 단어 경계(`\\b`) 기준 매칭하여 한/영 혼합(code-switching) 문장을 안정적으로 처리.
+  3. 토픽 후보(`Architecture`, `Budget`, `Bug & Incident`, `Deployment & Operations`, `Performance`, `Roadmap & Schedule`, `Security`, `Hiring`)를 도메인 우선순위로 관리.
+  4. 키워드 미탐지 시 기본 토픽 `General Discussion`을 반환하도록 fallback 추가.
+  5. `tests/test_analyze.py`에 예산(code-switching) 케이스와 fallback 케이스를 추가해 TDD로 검증 강화.
+- **문서 반영**:
+  - `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`에 Topic Extraction 규칙 기반 알고리즘을 동기화.
+  - `feature_list.json`의 `feat_logic_topic_extraction.passes`를 `true`로 갱신.
+---
 ## [2026-03-30] Codex worktree setup에 feature-issue 자동 동기화 통합
 - **수행 내역**:
   1. `scripts/setup_worktree.sh`에 feature 동기화 단계를 추가하여 setup 시 `scripts/sync_feature_issues.py --create-missing --sync-state --write-feature-file --apply`를 자동 실행하도록 통합.

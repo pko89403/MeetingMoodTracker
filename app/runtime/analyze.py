@@ -5,10 +5,11 @@ from queue import Queue
 from threading import Thread
 from typing import Iterator
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.service.analyze_service import (
+    AnalyzeInferenceError,
     create_analyze_request_id,
     get_analyze_logic_steps,
     run_analyze_pipeline,
@@ -23,17 +24,36 @@ from app.types.mood import AnalyzeRequest, AnalyzeResponse
 router = APIRouter()
 
 
+def _raise_analyze_llm_failure(exc: AnalyzeInferenceError) -> None:
+    """LLM 기반 analyze 실패를 502(Bad Gateway)로 변환한다."""
+    raise HTTPException(
+        status_code=502,
+        detail={
+            "error_code": "ANALYZE_LLM_FAILURE",
+            "message_ko": "LLM 기반 analyze 추론에 실패했습니다.",
+            "message_en": "Analyze inference failed from LLM service.",
+            "stage": exc.stage,
+        },
+    ) from exc
+
+
 @router.post("/analyze", response_model=AnalyzeResponse)
 def analyze_meeting(request: AnalyzeRequest) -> AnalyzeResponse:
     """기존 analyze 계약을 유지하면서 공통 파이프라인 결과만 반환한다."""
-    inspect_result = run_analyze_pipeline(request=request)
+    try:
+        inspect_result = run_analyze_pipeline(request=request)
+    except AnalyzeInferenceError as exc:
+        _raise_analyze_llm_failure(exc=exc)
     return inspect_result.result
 
 
 @router.post("/analyze/inspect", response_model=AnalyzeInspectResponse)
 def inspect_analyze_meeting(request: AnalyzeRequest) -> AnalyzeInspectResponse:
     """analyze 실행 결과와 내부 추적 정보(steps/logs)를 함께 반환한다."""
-    return run_analyze_pipeline(request=request)
+    try:
+        return run_analyze_pipeline(request=request)
+    except AnalyzeInferenceError as exc:
+        _raise_analyze_llm_failure(exc=exc)
 
 
 def _build_sse_frame(payload: AnalyzeSseEventPayload) -> str:

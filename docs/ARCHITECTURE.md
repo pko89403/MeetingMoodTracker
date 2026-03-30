@@ -39,10 +39,18 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
 ### Analyze Inspect Flow (REST + SSE)
 
 - `app/service/analyze_service.py`의 `run_analyze_pipeline`이 `/analyze`, `/analyze/inspect`, `/analyze/inspect/stream`이 공통으로 호출하는 단일 알고리즘 메서드입니다.
+- `run_analyze_pipeline`은 2-stage LLM 파이프라인을 사용합니다.
+  - Stage 1: `extract_topics_with_llm` (`topics: string[]`, `reasoning_effort=none`)
+  - Stage 2: `analyze_sentiment_with_llm` (`sentiment.positive/negative/neutral`, `reasoning_effort=minimal`)
+  - Stage 2 입력은 원문 텍스트 + Stage 1 topics를 함께 사용합니다.
+  - 최종 `topic`은 topics를 `", "`로 결합한 문자열입니다.
+  - 최종 `sentiment`는 정수 퍼센트 3축으로 정규화되며(`positive/negative/neutral`), 합계 100을 보장합니다.
 - `POST /api/v1/analyze`:
   - 공통 파이프라인 결과에서 `AnalyzeResponse`만 반환해 기존 계약을 유지합니다.
+  - LLM 추론 실패 시 `502` (`ANALYZE_LLM_FAILURE`)를 반환합니다.
 - `POST /api/v1/analyze/inspect`:
   - 공통 파이프라인 결과에서 `request_id`, `logic_steps`, `logs`, `result`를 함께 반환합니다.
+  - LLM 추론 실패 시 `502` (`ANALYZE_LLM_FAILURE`)를 반환합니다.
 - `POST /api/v1/analyze/inspect/stream`:
   - 공통 파이프라인 결과를 `start -> log* -> result -> done` SSE 이벤트로 변환해 전달합니다.
 - analyze 실행 로그는 서비스 레이어의 메모리 링버퍼(`maxlen=200`)에도 저장됩니다.

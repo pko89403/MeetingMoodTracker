@@ -1,19 +1,100 @@
 """Analyze 파이프라인 공통 실행 로직."""
 
+import json
+import math
+import re
 from collections import deque
 from datetime import datetime, timezone
 from threading import Lock
-from typing import Callable
+from typing import Any, Callable
 from uuid import uuid4
 
+from openai import AzureOpenAI
+
+from app.service.llm_config_service import get_llm_config
 from app.types.analyze_inspect import (
     AnalyzeInspectResponse,
     AnalyzeLogEntry,
     AnalyzeLogicStep,
 )
-from app.types.mood import AnalyzeRequest, AnalyzeResponse
+from app.types.analyze_llm import SentimentExtractionResult, TopicExtractionResult
+from app.types.llm_config import LlmConfigResponse
+from app.types.mood import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    AnalyzeSentiment,
+    SentimentConfidence,
+)
 
+DEFAULT_AZURE_OPENAI_API_VERSION = "2025-04-01-preview"
+TOPIC_REASONING_EFFORT = "none"
+SENTIMENT_REASONING_EFFORT = "minimal"
 MAX_ANALYZE_LOG_BUFFER_SIZE = 200
+
+TOPIC_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
+    "name": "meeting_topic_extraction",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "topics": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "minLength": 1,
+                },
+                "minItems": 1,
+            }
+        },
+        "required": ["topics"],
+    },
+}
+
+SENTIMENT_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
+    "name": "meeting_sentiment_distribution",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "sentiment": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "positive": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "negative": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "neutral": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                },
+                "required": ["positive", "negative", "neutral"],
+            }
+        },
+        "required": ["sentiment"],
+    },
+}
+
+_TOPIC_STOPWORD_PATTERN = re.compile(
+    r"(?i)\b(?:um+|uh+|like|you know|i mean|sort of|kind of)\b|"
+    r"(?:음+|어+|그냥|약간|뭐랄까|저기|일단)"
+)
+_TOPIC_ALLOWED_CHARS_PATTERN = re.compile(r"[^0-9A-Za-z가-힣\s.,!?/&()_-]")
+_MULTI_SPACE_PATTERN = re.compile(r"\s+")
+
 _analyze_log_buffer: deque[AnalyzeLogEntry] = deque(maxlen=MAX_ANALYZE_LOG_BUFFER_SIZE)
 _analyze_log_lock = Lock()
 
@@ -26,19 +107,31 @@ _ANALYZE_LOGIC_STEPS: tuple[AnalyzeLogicStep, ...] = (
     AnalyzeLogicStep(
         step_id="extract_topic",
         title_ko="의제 추론",
-        description_ko="회의 텍스트에서 핵심 의제를 추론합니다.",
+        description_ko="전처리된 텍스트를 기반으로 LLM이 topics 리스트를 구조화 추출합니다.",
     ),
     AnalyzeLogicStep(
-        step_id="analyze_mood",
-        title_ko="분위기 추론",
-        description_ko="문장 톤을 바탕으로 분위기와 신뢰도를 산출합니다.",
+        step_id="analyze_sentiment",
+        title_ko="감정 분포 추론",
+        description_ko=(
+            "원문 텍스트와 topic 리스트를 함께 입력해 "
+            "positive/negative/neutral confidence를 추론합니다."
+        ),
     ),
     AnalyzeLogicStep(
         step_id="compose_response",
         title_ko="응답 조합",
-        description_ko="분석 결과를 API 응답 스키마로 직렬화합니다.",
+        description_ko="topics를 단일 topic 문자열로 결합해 API 응답 스키마를 조합합니다.",
     ),
 )
+
+
+class AnalyzeInferenceError(Exception):
+    """Analyze 파이프라인의 LLM 추론 단계에서 오류가 발생했을 때 사용한다."""
+
+    def __init__(self, stage: str, message: str) -> None:
+        """오류 단계(`topic`/`sentiment`/`config`)와 상세 메시지를 보관한다."""
+        self.stage = stage
+        super().__init__(message)
 
 
 def _now_iso_utc() -> str:
@@ -101,31 +194,268 @@ def _record_log(
         on_log(entry)
 
 
-def _infer_topic(text: str) -> str:
-    """의제 추론 결과를 생성한다.
-
-    현재는 기존 회귀 호환을 위해 고정값(`Architecture`)을 반환한다.
-    """
-    _ = text
-    return "Architecture"
-
-
-def _infer_mood(text: str) -> str:
-    """분위기 추론 결과를 생성한다.
-
-    현재는 기존 회귀 호환을 위해 고정값(`Positive`)을 반환한다.
-    """
-    _ = text
-    return "Positive"
+def _resolve_api_version(llm_config: LlmConfigResponse) -> str:
+    """설정값에서 API 버전을 가져오고 비어 있으면 기본 버전을 사용한다."""
+    api_version = llm_config.LLM_MODEL_VERSION
+    if api_version is None or api_version.strip() == "":
+        return DEFAULT_AZURE_OPENAI_API_VERSION
+    return api_version
 
 
-def _infer_confidence(text: str) -> float:
-    """분위기 추론 신뢰도를 계산한다.
+def _build_azure_client(llm_config: LlmConfigResponse) -> AzureOpenAI:
+    """검증된 LLM 설정으로 Azure OpenAI SDK 클라이언트를 생성한다."""
+    return AzureOpenAI(
+        api_key=llm_config.LLM_API_KEY,
+        azure_endpoint=llm_config.LLM_ENDPOINT,
+        api_version=_resolve_api_version(llm_config=llm_config),
+    )
 
-    현재는 기존 회귀 호환을 위해 고정값(`0.95`)을 반환한다.
-    """
-    _ = text
-    return 0.95
+
+def preprocess_for_topic(text: str) -> str:
+    """토픽 추출 품질을 높이기 위한 텍스트 전처리를 수행한다."""
+    normalized_text = _TOPIC_ALLOWED_CHARS_PATTERN.sub(" ", text)
+    without_stopwords = _TOPIC_STOPWORD_PATTERN.sub(" ", normalized_text)
+    return _MULTI_SPACE_PATTERN.sub(" ", without_stopwords).strip()
+
+
+def _build_topic_system_prompt() -> str:
+    """토픽 추출용 시스템 프롬프트를 구성한다."""
+    return (
+        "You extract concise meeting topics from transcript text. "
+        "Input can be Korean and English mixed. "
+        "Return 1-5 concrete topics ordered by relevance. "
+        "Each topic should be short noun phrase."
+    )
+
+
+def _build_topic_user_prompt(preprocessed_text: str) -> str:
+    """토픽 추출용 사용자 프롬프트를 구성한다."""
+    return "preprocessed_meeting_text:\n" + preprocessed_text
+
+
+def _build_sentiment_system_prompt() -> str:
+    """감정 분포 추출용 시스템 프롬프트를 구성한다."""
+    return (
+        "You analyze meeting sentiment distribution. "
+        "Use both meeting topics and original meeting text. "
+        "Return positive, negative, and neutral confidence values. "
+        "Confidence values can be raw scores and will be normalized by server."
+    )
+
+
+def _build_sentiment_user_prompt(original_text: str, topics: list[str]) -> str:
+    """감정 분포 추출용 사용자 프롬프트를 구성한다."""
+    topic_lines = "\n".join(f"- {topic}" for topic in topics)
+    return (
+        "extracted_topics:\n"
+        f"{topic_lines}\n\n"
+        "meeting_text:\n"
+        f"{original_text}"
+    )
+
+
+def _extract_message_content(completion: Any, stage: str) -> str:
+    """Chat completion 결과에서 비어 있지 않은 본문 문자열을 추출한다."""
+    choices = getattr(completion, "choices", None)
+    if not choices:
+        raise AnalyzeInferenceError(stage=stage, message="LLM response has no choices.")
+
+    first_choice = choices[0]
+    message = getattr(first_choice, "message", None)
+    if message is None:
+        raise AnalyzeInferenceError(stage=stage, message="LLM response has no message.")
+
+    content = getattr(message, "content", None)
+    if not isinstance(content, str) or content.strip() == "":
+        raise AnalyzeInferenceError(stage=stage, message="LLM response content is empty.")
+
+    return content
+
+
+def _parse_json_payload(content: str, stage: str) -> dict[str, Any]:
+    """LLM 본문 문자열을 JSON 객체로 파싱한다."""
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise AnalyzeInferenceError(stage=stage, message="LLM response is not valid JSON.") from exc
+
+    if not isinstance(payload, dict):
+        raise AnalyzeInferenceError(stage=stage, message="LLM response payload must be object.")
+    return payload
+
+
+def _normalize_topics(raw_topics: list[str]) -> list[str]:
+    """토픽 리스트를 정리하고 비어 있으면 오류를 발생시킨다."""
+    cleaned_topics: list[str] = []
+    seen: set[str] = set()
+
+    for raw_topic in raw_topics:
+        normalized = raw_topic.strip()
+        if normalized == "":
+            continue
+        dedupe_key = normalized.casefold()
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        cleaned_topics.append(normalized)
+
+    if not cleaned_topics:
+        raise AnalyzeInferenceError(stage="topic", message="No valid topics extracted.")
+    return cleaned_topics
+
+
+def _normalize_sentiment_confidences(
+    positive_raw: float,
+    negative_raw: float,
+    neutral_raw: float,
+) -> AnalyzeSentiment:
+    """감정 confidence 원시값을 0~100 정수 퍼센트(합계 100)로 정규화한다."""
+    axis_values = [
+        max(0.0, positive_raw),
+        max(0.0, negative_raw),
+        max(0.0, neutral_raw),
+    ]
+    total = sum(axis_values)
+    if total <= 0:
+        axis_values = [1.0, 1.0, 1.0]
+        total = 3.0
+
+    scaled = [(value / total) * 100.0 for value in axis_values]
+    floors = [math.floor(value) for value in scaled]
+    fractions = [scaled[idx] - floors[idx] for idx in range(3)]
+    remainder = 100 - sum(floors)
+
+    # Largest Remainder + tie-break(positive -> negative -> neutral)
+    order = sorted(range(3), key=lambda idx: (-fractions[idx], idx))
+    for idx in order[:remainder]:
+        floors[idx] += 1
+
+    positive_value, negative_value, neutral_value = floors
+    sentiment = AnalyzeSentiment(
+        positive=SentimentConfidence(confidence=positive_value),
+        negative=SentimentConfidence(confidence=negative_value),
+        neutral=SentimentConfidence(confidence=neutral_value),
+    )
+    normalized_total = (
+        sentiment.positive.confidence
+        + sentiment.negative.confidence
+        + sentiment.neutral.confidence
+    )
+    if normalized_total != 100:
+        raise AnalyzeInferenceError(
+            stage="sentiment",
+            message="Normalized sentiment confidence total must be 100.",
+        )
+    return sentiment
+
+
+def extract_topics_with_llm(
+    client: AzureOpenAI,
+    deployment_name: str,
+    preprocessed_text: str,
+) -> list[str]:
+    """LLM JSON structured 출력으로 토픽 리스트를 추출한다."""
+    if preprocessed_text.strip() == "":
+        raise AnalyzeInferenceError(stage="topic", message="Preprocessed text is empty.")
+
+    try:
+        completion = client.chat.completions.create(
+            model=deployment_name,
+            reasoning_effort=TOPIC_REASONING_EFFORT,
+            response_format={
+                "type": "json_schema",
+                "json_schema": TOPIC_EXTRACTION_JSON_SCHEMA,
+            },
+            messages=[
+                {"role": "system", "content": _build_topic_system_prompt()},
+                {
+                    "role": "user",
+                    "content": _build_topic_user_prompt(
+                        preprocessed_text=preprocessed_text,
+                    ),
+                },
+            ],
+        )
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="topic",
+            message="Failed to call Azure OpenAI for topic extraction.",
+        ) from exc
+
+    content = _extract_message_content(completion=completion, stage="topic")
+    payload = _parse_json_payload(content=content, stage="topic")
+
+    try:
+        parsed = TopicExtractionResult.model_validate(payload)
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="topic",
+            message="Topic extraction schema validation failed.",
+        ) from exc
+
+    return _normalize_topics(raw_topics=parsed.topics)
+
+
+def analyze_sentiment_with_llm(
+    client: AzureOpenAI,
+    deployment_name: str,
+    original_text: str,
+    topics: list[str],
+) -> AnalyzeSentiment:
+    """토픽 컨텍스트와 원문 텍스트를 사용해 감정 분포를 추출한다."""
+    if original_text.strip() == "":
+        raise AnalyzeInferenceError(stage="sentiment", message="Original text is empty.")
+    if not topics:
+        raise AnalyzeInferenceError(stage="sentiment", message="Topics are required.")
+
+    try:
+        completion = client.chat.completions.create(
+            model=deployment_name,
+            reasoning_effort=SENTIMENT_REASONING_EFFORT,
+            response_format={
+                "type": "json_schema",
+                "json_schema": SENTIMENT_EXTRACTION_JSON_SCHEMA,
+            },
+            messages=[
+                {"role": "system", "content": _build_sentiment_system_prompt()},
+                {
+                    "role": "user",
+                    "content": _build_sentiment_user_prompt(
+                        original_text=original_text,
+                        topics=topics,
+                    ),
+                },
+            ],
+        )
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="sentiment",
+            message="Failed to call Azure OpenAI for sentiment analysis.",
+        ) from exc
+
+    content = _extract_message_content(completion=completion, stage="sentiment")
+    payload = _parse_json_payload(content=content, stage="sentiment")
+
+    try:
+        parsed = SentimentExtractionResult.model_validate(payload)
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="sentiment",
+            message="Sentiment schema validation failed.",
+        ) from exc
+
+    return _normalize_sentiment_confidences(
+        positive_raw=parsed.sentiment.positive.confidence,
+        negative_raw=parsed.sentiment.negative.confidence,
+        neutral_raw=parsed.sentiment.neutral.confidence,
+    )
+
+
+def _compose_topic_string(topics: list[str]) -> str:
+    """topics 리스트를 단일 응답 문자열로 결합한다."""
+    if not topics:
+        raise AnalyzeInferenceError(stage="topic", message="Topics are empty.")
+    return ", ".join(topics)
 
 
 def run_analyze_pipeline(
@@ -148,26 +478,56 @@ def run_analyze_pipeline(
         on_log=on_log,
     )
 
-    topic = _infer_topic(text=request.text)
+    try:
+        llm_config = get_llm_config()
+        client = _build_azure_client(llm_config=llm_config)
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="config",
+            message="LLM 설정 로드 또는 클라이언트 생성에 실패했습니다.",
+        ) from exc
+
+    preprocessed_text = preprocess_for_topic(text=request.text)
+    topics = extract_topics_with_llm(
+        client=client,
+        deployment_name=llm_config.LLM_DEPLOYMENT_NAME,
+        preprocessed_text=preprocessed_text,
+    )
+    topic = _compose_topic_string(topics=topics)
     _record_log(
         request_id=resolved_request_id,
         step_id="extract_topic",
-        message_ko=f"의제 추론 완료: topic={topic}",
+        message_ko=f"의제 추론 완료: topics={topics}",
         collected_logs=collected_logs,
         on_log=on_log,
     )
 
-    mood = _infer_mood(text=request.text)
-    confidence = _infer_confidence(text=request.text)
+    sentiment = analyze_sentiment_with_llm(
+        client=client,
+        deployment_name=llm_config.LLM_DEPLOYMENT_NAME,
+        original_text=request.text,
+        topics=topics,
+    )
     _record_log(
         request_id=resolved_request_id,
-        step_id="analyze_mood",
-        message_ko=f"분위기 추론 완료: mood={mood}, confidence={confidence}",
+        step_id="analyze_sentiment",
+        message_ko=(
+            "감정 분포 추론 완료: "
+            "positive="
+            f"{sentiment.positive.confidence}, "
+            "negative="
+            f"{sentiment.negative.confidence}, "
+            "neutral="
+            f"{sentiment.neutral.confidence}"
+        ),
         collected_logs=collected_logs,
         on_log=on_log,
     )
 
-    result = AnalyzeResponse(topic=topic, mood=mood, confidence=confidence)
+    result = AnalyzeResponse(
+        topic=topic,
+        sentiment=sentiment,
+    )
     _record_log(
         request_id=resolved_request_id,
         step_id="compose_response",

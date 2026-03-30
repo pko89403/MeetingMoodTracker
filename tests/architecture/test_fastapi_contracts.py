@@ -20,7 +20,7 @@ def test_fastapi_contract_validator_valid_route(tmp_path: Path) -> None:
             "router = APIRouter()\n\n"
             "@router.post('/analyze', response_model=AnalyzeResponse)\n"
             "def analyze_meeting(request: AnalyzeRequest) -> AnalyzeResponse:\n"
-            "    return AnalyzeResponse(topic='Architecture', mood='Positive', confidence=0.9)\n"
+            "    return AnalyzeResponse(topic='Architecture', sentiment={'positive': {'confidence': 70}, 'negative': {'confidence': 10}, 'neutral': {'confidence': 20}})\n"
         ),
     )
     validator = FastAPIContractValidator(base_dir=str(tmp_path))
@@ -36,7 +36,7 @@ def test_fastapi_contract_validator_missing_return_type(tmp_path: Path) -> None:
             "router = APIRouter()\n\n"
             "@router.post('/analyze', response_model=AnalyzeResponse)\n"
             "def analyze_meeting(request: AnalyzeRequest):\n"
-            "    return AnalyzeResponse(topic='Architecture', mood='Positive', confidence=0.9)\n"
+            "    return AnalyzeResponse(topic='Architecture', sentiment={'positive': {'confidence': 70}, 'negative': {'confidence': 10}, 'neutral': {'confidence': 20}})\n"
         ),
     )
     validator = FastAPIContractValidator(base_dir=str(tmp_path))
@@ -53,7 +53,7 @@ def test_fastapi_contract_validator_missing_response_model(tmp_path: Path) -> No
             "router = APIRouter()\n\n"
             "@router.post('/analyze')\n"
             "def analyze_meeting(request: AnalyzeRequest) -> AnalyzeResponse:\n"
-            "    return AnalyzeResponse(topic='Architecture', mood='Positive', confidence=0.9)\n"
+            "    return AnalyzeResponse(topic='Architecture', sentiment={'positive': {'confidence': 70}, 'negative': {'confidence': 10}, 'neutral': {'confidence': 20}})\n"
         ),
     )
     validator = FastAPIContractValidator(base_dir=str(tmp_path))
@@ -70,7 +70,7 @@ def test_fastapi_contract_validator_forbids_dict_or_list_return(tmp_path: Path) 
             "router = APIRouter()\n\n"
             "@router.post('/analyze', response_model=AnalyzeResponse)\n"
             "def analyze_meeting(request: AnalyzeRequest) -> AnalyzeResponse:\n"
-            "    return {'topic': 'Architecture', 'mood': 'Positive', 'confidence': 0.9}\n"
+            "    return {'topic': 'Architecture', 'sentiment': {'positive': {'confidence': 70}, 'negative': {'confidence': 10}, 'neutral': {'confidence': 20}}}\n"
         ),
     )
     validator = FastAPIContractValidator(base_dir=str(tmp_path))

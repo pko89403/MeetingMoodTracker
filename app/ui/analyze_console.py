@@ -3,7 +3,7 @@
 import json
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, Iterator
 
 import httpx
 import streamlit as st
@@ -28,9 +28,11 @@ def _call_inspect_rest(base_url: str, payload: dict[str, str]) -> dict[str, Any]
         return response.json()
 
 
-def _read_sse_events(base_url: str, payload: dict[str, str]) -> list[dict[str, Any]]:
-    """inspect SSE 스트림을 읽어 이벤트 목록으로 파싱한다."""
-    events: list[dict[str, Any]] = []
+def _iter_sse_events(
+    base_url: str,
+    payload: dict[str, str],
+) -> Iterator[dict[str, Any]]:
+    """inspect SSE 스트림을 이벤트 단위로 파싱해 순차 반환한다."""
     current_event = "message"
     data_lines: list[str] = []
 
@@ -51,7 +53,7 @@ def _read_sse_events(base_url: str, payload: dict[str, str]) -> list[dict[str, A
                             parsed_data = json.loads(data_raw)
                         except json.JSONDecodeError:
                             parsed_data = {"raw": data_raw}
-                        events.append({"event": current_event, "data": parsed_data})
+                        yield {"event": current_event, "data": parsed_data}
                     current_event = "message"
                     data_lines = []
                     continue
@@ -62,7 +64,18 @@ def _read_sse_events(base_url: str, payload: dict[str, str]) -> list[dict[str, A
                 if line.startswith("data:"):
                     data_lines.append(line.split(":", 1)[1].strip())
 
-    return events
+            if data_lines:
+                data_raw = "\n".join(data_lines)
+                try:
+                    parsed_data = json.loads(data_raw)
+                except json.JSONDecodeError:
+                    parsed_data = {"raw": data_raw}
+                yield {"event": current_event, "data": parsed_data}
+
+
+def _read_sse_events(base_url: str, payload: dict[str, str]) -> list[dict[str, Any]]:
+    """inspect SSE 스트림을 읽어 이벤트 목록으로 파싱한다."""
+    return [event for event in _iter_sse_events(base_url=base_url, payload=payload)]
 
 
 def _merge_events_to_inspect_payload(events: list[dict[str, Any]]) -> dict[str, Any]:
@@ -107,6 +120,74 @@ def _merge_events_to_inspect_payload(events: list[dict[str, Any]]) -> dict[str, 
     }
 
 
+def _call_inspect_sse_with_live_render(
+    base_url: str,
+    payload: dict[str, str],
+) -> dict[str, Any]:
+    """SSE 이벤트를 읽으면서 Streamlit 화면에 중간 진행상황을 즉시 렌더링한다."""
+    status_placeholder = st.empty()
+    logs_placeholder = st.empty()
+    result_placeholder = st.empty()
+    response_payload: dict[str, Any] = {
+        "request_id": "",
+        "result": {},
+        "logic_steps": [],
+        "logs": [],
+    }
+
+    status_placeholder.info("SSE 스트림 연결 중...")
+
+    for event in _iter_sse_events(base_url=base_url, payload=payload):
+        event_name = event.get("event")
+        data = event.get("data", {})
+        if isinstance(data, dict) and "request_id" in data:
+            response_payload["request_id"] = str(data["request_id"])
+
+        if event_name == "start" and isinstance(data, dict):
+            maybe_logic_steps = data.get("logic_steps")
+            if isinstance(maybe_logic_steps, list):
+                response_payload["logic_steps"] = maybe_logic_steps
+            status_placeholder.info(
+                "SSE 실행 중... "
+                f"request_id={response_payload.get('request_id', '-')}"
+            )
+            continue
+
+        if event_name == "log" and isinstance(data, dict):
+            logs: list[dict[str, Any]] = response_payload["logs"]
+            logs.append(
+                {
+                    "request_id": data.get("request_id"),
+                    "step_id": data.get("step_id"),
+                    "message_ko": data.get("message_ko"),
+                    "created_at": data.get("created_at"),
+                }
+            )
+            with logs_placeholder.container():
+                st.caption("실시간 로그 (최근 30건)")
+                st.table(logs[-30:])
+            continue
+
+        if event_name == "result" and isinstance(data, dict):
+            maybe_result = data.get("result")
+            if isinstance(maybe_result, dict):
+                response_payload["result"] = maybe_result
+                with result_placeholder.container():
+                    st.caption("실시간 결과 미리보기")
+                    st.json(maybe_result)
+            continue
+
+        if event_name == "done":
+            status_placeholder.success("SSE 스트림 완료")
+            continue
+
+        if event_name == "error" and isinstance(data, dict):
+            message = str(data.get("message_ko", "알 수 없는 SSE 오류"))
+            raise RuntimeError(message)
+
+    return response_payload
+
+
 def _render_logic_steps(logic_steps: list[dict[str, Any]]) -> None:
     """로직 단계 목록을 UI에 렌더링한다."""
     st.subheader("내부 로직 단계")
@@ -128,6 +209,24 @@ def _render_logs(logs: list[dict[str, Any]]) -> None:
         st.info("표시할 로그가 없습니다.")
         return
     st.table(logs)
+
+
+def _render_sentiment_summary(result: dict[str, Any]) -> None:
+    """Analyze 결과의 sentiment 분포를 요약 테이블로 렌더링한다."""
+    sentiment = result.get("sentiment")
+    if not isinstance(sentiment, dict):
+        return
+
+    rows: list[dict[str, Any]] = []
+    for label in ("positive", "negative", "neutral"):
+        confidence = "-"
+        axis = sentiment.get(label)
+        if isinstance(axis, dict):
+            confidence = axis.get("confidence", "-")
+        rows.append({"label": label, "confidence": confidence})
+
+    st.caption("Sentiment 분포")
+    st.table(rows)
 
 
 def _init_session_state() -> None:
@@ -267,8 +366,10 @@ def main() -> None:
             mode_label = "REST"
             if use_sse:
                 try:
-                    sse_events = _read_sse_events(base_url=base_url, payload=payload)
-                    response_payload = _merge_events_to_inspect_payload(events=sse_events)
+                    response_payload = _call_inspect_sse_with_live_render(
+                        base_url=base_url,
+                        payload=payload,
+                    )
                     mode_label = "SSE"
                 except Exception as sse_exc:
                     st.warning(
@@ -321,7 +422,10 @@ def main() -> None:
     col_result, col_logs = st.columns([1, 1])
     with col_result:
         st.subheader("Analyze 결과")
-        st.json(response_payload.get("result", {}))
+        result_payload = response_payload.get("result", {})
+        st.json(result_payload)
+        if isinstance(result_payload, dict):
+            _render_sentiment_summary(result=result_payload)
     with col_logs:
         _render_logs(response_payload.get("logs", []))
 
