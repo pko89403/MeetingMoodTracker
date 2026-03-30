@@ -90,7 +90,6 @@ fi
 
 _sync_env_file_from_main_worktree "dev.env"
 _sync_env_file_from_main_worktree "prod.env"
-
 echo "[setup] worktree 가상환경 준비: ${UV_PROJECT_ENVIRONMENT}"
 if [[ -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" ]]; then
   echo "[setup] 기존 가상환경 재사용"

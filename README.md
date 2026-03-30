@@ -8,16 +8,15 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
 - 회의 발화 입력은 한국어를 우선 지원하며, 한/영 혼합 발화도 지원합니다.
 - 코드 식별자는 영어를 유지하고, 문서/설명/docstring은 한국어 중심으로 관리합니다.
 
-## Worktree 셋업
+## Codex Worktree Setup
 
-- 기본 셋업 스크립트: `scripts/setup_worktree.sh`
-- 동작:
-  - `UV_PROJECT_ENVIRONMENT=.venv` 기준으로 가상환경 생성/재사용
-  - `uv sync --locked`로 의존성 동기화
-  - 현재 worktree에 `dev.env`/`prod.env`가 없으면, `main` branch worktree를 찾아 동일 파일을 복사
-  - `uv` 바이너리 경로를 `PATH`에 선반영해 pre-commit 훅에서도 동일 실행 환경 유지
-- 보안 주의:
-  - `dev.env`, `prod.env`는 로컬 전용 파일이며 Git에 커밋하지 않습니다.
+- worktree별 가상환경은 프로젝트 루트의 `.venv`를 사용합니다.
+- setup script(`scripts/setup_worktree.sh`)는 `UV_PROJECT_ENVIRONMENT=.venv`를 강제합니다.
+- 패키지 설치 캐시는 `UV_CACHE_DIR`(기본 `~/.cache/uv`)를 재사용해 설치 비용을 줄입니다.
+- Codex 환경 등록은 `.codex/environments/environment.toml`의 `[setup].script`를 사용합니다.
+- setup script는 현재 worktree에 `dev.env`/`prod.env`가 없을 때 `main` worktree에서 자동 복사합니다.
+- setup script는 `uv` 바이너리 경로를 `PATH`에 선반영해 pre-commit 훅에서도 동일 실행 환경을 유지합니다.
+- `dev.env`, `prod.env`는 로컬 전용 파일이며 Git에 커밋하지 않습니다.
 
 ## Codex IDE Actions
 

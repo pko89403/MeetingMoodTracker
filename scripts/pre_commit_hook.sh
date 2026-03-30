@@ -9,9 +9,12 @@ elif [[ -x "${HOME}/.local/bin/uv" ]]; then
 elif [[ -x "/opt/homebrew/bin/uv" ]]; then
     UV_BIN="/opt/homebrew/bin/uv"
 else
-    echo "[pre-commit] 오류: uv 실행 파일을 찾을 수 없습니다."
-    exit 127
+    echo "❌ uv 실행 파일을 찾지 못했습니다. (PATH / ~/.local/bin / /opt/homebrew/bin 확인 필요)"
+    exit 2
 fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}"
 
 # pre-commit 훅 실행 시 PATH가 축소되는 환경을 대비해 uv 경로를 선반영한다.
 export PATH="$(dirname "${UV_BIN}"):${PATH}"
