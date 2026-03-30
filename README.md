@@ -15,6 +15,7 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
   - `UV_PROJECT_ENVIRONMENT=.venv` 기준으로 가상환경 생성/재사용
   - `uv sync --locked`로 의존성 동기화
   - 현재 worktree에 `dev.env`/`prod.env`가 없으면, `main` branch worktree를 찾아 동일 파일을 복사
+  - `uv` 바이너리 경로를 `PATH`에 선반영해 pre-commit 훅에서도 동일 실행 환경 유지
 - 보안 주의:
   - `dev.env`, `prod.env`는 로컬 전용 파일이며 Git에 커밋하지 않습니다.
 

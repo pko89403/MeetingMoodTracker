@@ -77,6 +77,9 @@ if ! UV_BIN="$(_find_uv_bin)"; then
   exit 127
 fi
 
+# Codex 하위 프로세스(예: git pre-commit hook)에서도 uv를 찾을 수 있게 PATH를 보강한다.
+export PATH="$(dirname "${UV_BIN}"):${PATH}"
+
 MAIN_WORKTREE_ROOT=""
 if MAIN_WORKTREE_ROOT="$(_find_main_worktree_root)"; then
   echo "[setup] main worktree 감지: ${MAIN_WORKTREE_ROOT}"
