@@ -17,6 +17,9 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
 - setup script는 현재 worktree에 `dev.env`/`prod.env`가 없을 때 `main` worktree에서 자동 복사합니다.
 - setup script는 `uv` 바이너리 경로를 `PATH`에 선반영해 pre-commit 훅에서도 동일 실행 환경을 유지합니다.
 - `dev.env`, `prod.env`는 로컬 전용 파일이며 Git에 커밋하지 않습니다.
+- setup 시 `scripts/sync_feature_issues.py`가 자동 실행되어 `feature_list.json`과 GitHub Issue를 동기화합니다.
+- `GITHUB_TOKEN`이 없으면 `gh auth token`을 사용해 토큰을 자동 확보합니다(로그인된 경우).
+- 동기화를 건너뛰려면 `SKIP_FEATURE_ISSUE_SYNC=1 ./scripts/setup_worktree.sh`로 실행합니다.
 
 ## Codex IDE Actions
 
@@ -97,3 +100,30 @@ Use `example.env` as the template. Keep `dev.env` and `prod.env` local only.
 - Script: `scripts/evaluate_sentiment_with_judge.py`
 - Input: JSONL with `utterance_text`, `predicted_label` and optional IDs
 - Output: JSON report with agreement rate and per-turn judge rationale
+
+## Feature List <-> GitHub Issue Sync
+
+- Script: `scripts/sync_feature_issues.py`
+- Purpose: `feature_list.json`의 기능 항목과 GitHub Issue를 `feature_id` 기준으로 동기화합니다.
+- Issue 식별 방식:
+  - 본문 마커: `<!-- feature_id:feat_xxx -->`
+  - 제목 패턴 fallback: `[feat_xxx] ...`
+
+대표 실행 예시:
+
+```bash
+# 1) 현재 상태 리포트(dry-run)
+uv run python scripts/sync_feature_issues.py --create-missing --sync-state
+
+# 2) 실제 적용(이슈 생성/상태 동기화 + feature_list 메타데이터 기록)
+export GITHUB_TOKEN=***REDACTED***
+uv run python scripts/sync_feature_issues.py \
+  --create-missing \
+  --sync-state \
+  --write-feature-file \
+  --apply
+```
+
+주의:
+- `--apply`로 GitHub 상태를 변경하려면 `GITHUB_TOKEN`이 필요합니다.
+- public repo 조회만 할 때는 토큰 없이 dry-run이 가능합니다.

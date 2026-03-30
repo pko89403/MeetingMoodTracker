@@ -6,19 +6,37 @@
       "id": "feat_system_harness",
       "name": "Harness & Architecture Validation Environment",
       "description": "Custom linter, AST structure checker, incremental agent runner.",
-      "passes": true
+      "passes": true,
+      "github_issue": {
+        "number": 4,
+        "url": "https://github.com/pko89403/MeetingMoodTracker/issues/4",
+        "state": "closed",
+        "synced_at": "2026-03-30T02:38:36+00:00"
+      }
     },
     {
       "id": "feat_system_of_record",
       "name": "Progressive Disclosure System of Record (docs/)",
       "description": "Establish docs/ repository for architecture, design, and history keeping.",
-      "passes": true
+      "passes": true,
+      "github_issue": {
+        "number": 5,
+        "url": "https://github.com/pko89403/MeetingMoodTracker/issues/5",
+        "state": "closed",
+        "synced_at": "2026-03-30T02:38:37+00:00"
+      }
     },
     {
       "id": "feat_analyze_skeleton",
       "name": "Analysis API Skeleton (/api/v1/analyze)",
       "description": "Basic SDD routing, dummy API to pass the ast validator and test client.",
-      "passes": true
+      "passes": true,
+      "github_issue": {
+        "number": 6,
+        "url": "https://github.com/pko89403/MeetingMoodTracker/issues/6",
+        "state": "closed",
+        "synced_at": "2026-03-30T02:38:38+00:00"
+      }
     },
     {
       "id": "feat_ui_analyze_inspect_streamlit",
@@ -30,19 +48,37 @@
       "id": "feat_logic_topic_extraction",
       "name": "Topic Extraction Logic",
       "description": "Extract main context and discussion topics from meeting transcripts.",
-      "passes": false
+      "passes": false,
+      "github_issue": {
+        "number": 7,
+        "url": "https://github.com/pko89403/MeetingMoodTracker/issues/7",
+        "state": "open",
+        "synced_at": "2026-03-30T02:38:39+00:00"
+      }
     },
     {
       "id": "feat_logic_mood_analysis",
       "name": "Mood and Severity Analysis",
       "description": "Assess severity (1-10) and mood parameters (constructive, tense, etc.) from transcript.",
-      "passes": true
+      "passes": true,
+      "github_issue": {
+        "number": 8,
+        "url": "https://github.com/pko89403/MeetingMoodTracker/issues/8",
+        "state": "closed",
+        "synced_at": "2026-03-30T02:38:40+00:00"
+      }
     },
     {
       "id": "feat_config_llm_env_management",
       "name": "LLM Config and Environment File Management",
       "description": "Provide read-only API to load LLM config from dev/prod env files and validate required keys.",
-      "passes": true
+      "passes": true,
+      "github_issue": {
+        "number": 9,
+        "url": "https://github.com/pko89403/MeetingMoodTracker/issues/9",
+        "state": "closed",
+        "synced_at": "2026-03-30T02:38:42+00:00"
+      }
     }
   ]
 }

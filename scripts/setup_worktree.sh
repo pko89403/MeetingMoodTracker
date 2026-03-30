@@ -8,6 +8,14 @@ WORKTREE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 export UV_PROJECT_ENVIRONMENT="${WORKTREE_ROOT}/.venv"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-${HOME}/.cache/uv}"
 
+# Homebrew/local bin이 빠진 셸에서도 공통 툴 탐색이 가능하도록 PATH를 보강한다.
+if [[ -d "/opt/homebrew/bin" ]]; then
+  export PATH="/opt/homebrew/bin:${PATH}"
+fi
+if [[ -d "${HOME}/.local/bin" ]]; then
+  export PATH="${HOME}/.local/bin:${PATH}"
+fi
+
 _find_uv_bin() {
   if command -v uv >/dev/null 2>&1; then
     command -v uv
@@ -100,4 +108,32 @@ fi
 echo "[setup] uv 의존성 동기화 시작 (cache: ${UV_CACHE_DIR})"
 cd "${WORKTREE_ROOT}"
 "${UV_BIN}" sync --locked
+
+if [[ "${SKIP_FEATURE_ISSUE_SYNC:-0}" != "1" ]] && [[ -f "${WORKTREE_ROOT}/scripts/sync_feature_issues.py" ]]; then
+  GH_BIN=""
+  if command -v gh >/dev/null 2>&1; then
+    GH_BIN="$(command -v gh)"
+  elif [[ -x "/opt/homebrew/bin/gh" ]]; then
+    GH_BIN="/opt/homebrew/bin/gh"
+  elif [[ -x "/usr/local/bin/gh" ]]; then
+    GH_BIN="/usr/local/bin/gh"
+  fi
+
+  if [[ -z "${GITHUB_TOKEN:-}" ]] && [[ -n "${GH_BIN}" ]]; then
+    if "${GH_BIN}" auth status >/dev/null 2>&1; then
+      GITHUB_TOKEN="$("${GH_BIN}" auth token 2>/dev/null || true)"
+      export GITHUB_TOKEN
+    fi
+  fi
+
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    echo "[setup] feature_list <-> GitHub issue 동기화 실행"
+    if ! "${UV_BIN}" run python scripts/sync_feature_issues.py --create-missing --sync-state --write-feature-file --apply; then
+      echo "[setup] 경고: feature issue 동기화 실패 (개발 환경 셋업은 계속 진행)"
+    fi
+  else
+    echo "[setup] 안내: GITHUB_TOKEN/gh auth 없음으로 feature issue 동기화 단계는 건너뜀"
+  fi
+fi
+
 echo "[setup] worktree 셋업 완료"

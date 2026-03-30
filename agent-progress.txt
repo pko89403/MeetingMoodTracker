@@ -2,6 +2,26 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-03-30] Codex worktree setup에 feature-issue 자동 동기화 통합
+- **수행 내역**:
+  1. `scripts/setup_worktree.sh`에 feature 동기화 단계를 추가하여 setup 시 `scripts/sync_feature_issues.py --create-missing --sync-state --write-feature-file --apply`를 자동 실행하도록 통합.
+  2. 셸 PATH 보강(`/opt/homebrew/bin`, `~/.local/bin`)을 추가해 Codex 실행 환경에서도 `uv`/`gh` 탐색 실패를 줄이도록 보완.
+  3. `GITHUB_TOKEN` 미설정 시 `gh auth token` 기반 자동 토큰 획득을 시도하도록 구현.
+  4. 동기화 실패는 경고만 남기고 setup은 계속 진행하도록 처리(개발 환경 부트스트랩 안정성 유지).
+  5. `SKIP_FEATURE_ISSUE_SYNC=1` opt-out 스위치를 추가해 필요 시 자동 동기화를 비활성화할 수 있도록 지원.
+  6. 반복 setup 시 불필요한 파일 변경을 방지하기 위해 `scripts/sync_feature_issues.py`를 개선하여 메타데이터 변경이 있을 때만 `feature_list.json`을 갱신하도록 수정.
+- **문서 반영**:
+  - `README.md`, `docs/AGENT_OPERATIONS_GUIDE.md`에 자동 동기화 동작과 우회 옵션을 추가.
+---
+## [2026-03-30] feature_list ↔ GitHub Issue 동기화 자동화 스크립트 추가
+- **수행 내역**:
+  1. `scripts/sync_feature_issues.py`를 추가하여 `feature_list.json`과 GitHub Issue를 `feature_id` 기준으로 동기화하는 자동화 경로를 구현.
+  2. 동기화 기능: 이슈 조회(PR 제외), `<!-- feature_id:... -->`/`[feat_xxx]` 매핑, 누락 이슈 생성 옵션, `passes` 기반 open/closed 상태 동기화 옵션, `feature_list.json` 메타데이터 기록 옵션.
+  3. `tests/test_sync_feature_issues.py`를 추가하여 마커 파싱/PR 필터링/메타데이터 기록 로직 회귀 테스트를 보강.
+  4. `README.md`, `docs/AGENT_OPERATIONS_GUIDE.md`에 실행 절차(dry-run → apply)와 운영 표준을 문서화.
+- **비고**:
+  - 현재 환경에는 `GITHUB_TOKEN`이 설정되어 있지 않아 `--apply` 실변경은 수행하지 못함.
+---
 ## [2026-03-30] pre-commit 훅 uv 탐색 안정화 (리뷰 후 수정)
 - **수행 내역**:
   1. 리뷰 중 확인된 결함(훅 실행 환경 PATH에 `uv`가 없을 때 커밋이 불필요하게 차단됨)을 수정.

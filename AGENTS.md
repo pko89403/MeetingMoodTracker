@@ -25,6 +25,13 @@ MeetingMoodTracker 프로젝트에 새로 진입한 에이전트를 위한 **최
 - **캐시 정책**: `UV_CACHE_DIR`는 홈 캐시(`~/.cache/uv`)를 재사용하여 설치 비용 최소화
 - **실행 순서**: worktree 진입 직후 setup script를 먼저 실행한 뒤 개발/테스트를 진행
 
+## 🔄 1-2. `feature_list.json` ↔ GitHub Issue 동기화 규칙 (필수)
+기능 진행상태는 로컬 파일과 GitHub Issue를 함께 맞춰 관리합니다.
+- **원칙**: worktree setup 단계에서 feature-issue 동기화를 기본 수행합니다.
+- **상세 운영 규칙/명령어/예외**: `docs/AGENT_OPERATIONS_GUIDE.md`의
+  `Codex Worktree Setup Policy`, `Feature-Issue Sync Operations` 섹션을 참조하십시오.
+- **구현 진입점**: `scripts/setup_worktree.sh`, `scripts/sync_feature_issues.py`
+
 ## 📖 2. 시스템 룰 및 기록 (`docs/` - System of Record)
 하네스 원칙, 아키텍처 제약, 설계안을 파악할 때 확인하십시오:
 - **`docs/ARCHITECTURE.md`**: 하네스(린터/러너) 및 모듈 간의 의존성 구조 제약 조건.
