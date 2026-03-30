@@ -4,6 +4,16 @@ from typing import Dict, List, Set
 
 ROUTE_DECORATOR_NAMES = {"get", "post", "put", "patch", "delete"}
 ALLOWED_IO_MODULE_PREFIX = "app.types"
+ALLOWED_SSE_ROUTE_PATHS = {
+    "/analyze/inspect/stream",
+    "/api/v1/analyze/inspect/stream",
+}
+ALLOWED_STREAMING_RESPONSE_TYPES = {
+    "StreamingResponse",
+    "fastapi.responses.StreamingResponse",
+    "starlette.responses.StreamingResponse",
+}
+SSE_MEDIA_TYPE = "text/event-stream"
 
 
 class FastAPIContractValidator:
@@ -100,6 +110,54 @@ class FastAPIContractValidator:
                 return route_path
         return "<unknown>"
 
+    def _is_allowed_sse_route(self, route_path: str) -> bool:
+        return route_path in ALLOWED_SSE_ROUTE_PATHS
+
+    def _has_streaming_response_class(
+        self,
+        decorator: ast.Call,
+        import_map: Dict[str, str],
+    ) -> bool:
+        for keyword in decorator.keywords:
+            if keyword.arg != "response_class":
+                continue
+            names = self._collect_name_paths(keyword.value)
+            resolved = self._resolve_import_paths(names, import_map)
+            if any(
+                response_type in ALLOWED_STREAMING_RESPONSE_TYPES
+                for response_type in resolved
+            ):
+                return True
+        return False
+
+    def _has_sse_media_type(
+        self,
+        fn_node: ast.FunctionDef | ast.AsyncFunctionDef,
+        import_map: Dict[str, str],
+    ) -> bool:
+        for node in ast.walk(fn_node):
+            if not isinstance(node, ast.Call):
+                continue
+
+            call_names = self._collect_name_paths(node.func)
+            resolved_call_names = self._resolve_import_paths(call_names, import_map)
+            is_streaming_response_call = any(
+                call_name in ALLOWED_STREAMING_RESPONSE_TYPES
+                for call_name in resolved_call_names
+            )
+            if not is_streaming_response_call:
+                continue
+
+            for keyword in node.keywords:
+                if (
+                    keyword.arg == "media_type"
+                    and isinstance(keyword.value, ast.Constant)
+                    and keyword.value.value == SSE_MEDIA_TYPE
+                ):
+                    return True
+
+        return False
+
     def _validate_route_function(
         self,
         fn_node: ast.FunctionDef | ast.AsyncFunctionDef,
@@ -120,6 +178,7 @@ class FastAPIContractValidator:
 
         route_path = self._extract_route_path(route_decorators[0])
         relative_file = file_path.relative_to(self.base_dir)
+        is_allowed_sse_route = self._is_allowed_sse_route(route_path=route_path)
 
         if fn_node.returns is None:
             violations.append(
@@ -128,43 +187,64 @@ class FastAPIContractValidator:
                 f"  [How to fix (Next Action)]: 라우트 핸들러에 Pydantic 응답 모델 기반 반환 타입을 명시하세요."
             )
 
-        has_response_model = False
-        for dec in route_decorators:
-            for kw in dec.keywords:
-                if kw.arg == "response_model":
-                    has_response_model = True
-                    names = self._collect_name_paths(kw.value)
-                    resolved = self._resolve_import_paths(names, import_map)
-                    app_paths = {name for name in resolved if name.startswith("app.")}
-                    if not any(
-                        name.startswith(ALLOWED_IO_MODULE_PREFIX) for name in app_paths
-                    ):
-                        violations.append(
-                            f"[FastAPI Contract Error] {relative_file}:{dec.lineno}\n"
-                            f"  -> '{route_path}' 라우트의 response_model은 app/types 기반 모델이어야 합니다.\n"
-                            f"  [How to fix (Next Action)]: app.types.* 경로의 Pydantic 모델을 response_model로 지정하세요."
-                        )
-                    forbidden = [
-                        name
-                        for name in app_paths
-                        if not name.startswith(ALLOWED_IO_MODULE_PREFIX)
-                    ]
-                    if forbidden:
-                        violations.append(
-                            f"[FastAPI Contract Error] {relative_file}:{dec.lineno}\n"
-                            f"  -> '{route_path}' 라우트의 response_model에서 app/types 외 경로를 사용했습니다: {forbidden[0]}\n"
-                            f"  [How to fix (Next Action)]: API 입출력 모델은 app.types.*로 통일하세요."
-                        )
+        if is_allowed_sse_route:
+            primary_decorator = route_decorators[0]
+            if not self._has_streaming_response_class(
+                decorator=primary_decorator,
+                import_map=import_map,
+            ):
+                violations.append(
+                    f"[FastAPI Contract Error] {relative_file}:{primary_decorator.lineno}\n"
+                    f"  -> '{route_path}' SSE 라우트는 response_class=StreamingResponse가 필요합니다.\n"
+                    f"  [How to fix (Next Action)]: @router.<method>(..., response_class=StreamingResponse) 형태로 선언하세요."
+                )
+            if not self._has_sse_media_type(fn_node=fn_node, import_map=import_map):
+                violations.append(
+                    f"[FastAPI Contract Error] {relative_file}:{fn_node.lineno}\n"
+                    f"  -> '{route_path}' SSE 라우트에서 media_type='text/event-stream'을 확인하지 못했습니다.\n"
+                    f"  [How to fix (Next Action)]: StreamingResponse(..., media_type='text/event-stream')를 반환하세요."
+                )
+        else:
+            has_response_model = False
+            for dec in route_decorators:
+                for kw in dec.keywords:
+                    if kw.arg == "response_model":
+                        has_response_model = True
+                        names = self._collect_name_paths(kw.value)
+                        resolved = self._resolve_import_paths(names, import_map)
+                        app_paths = {
+                            name for name in resolved if name.startswith("app.")
+                        }
+                        if not any(
+                            name.startswith(ALLOWED_IO_MODULE_PREFIX)
+                            for name in app_paths
+                        ):
+                            violations.append(
+                                f"[FastAPI Contract Error] {relative_file}:{dec.lineno}\n"
+                                f"  -> '{route_path}' 라우트의 response_model은 app/types 기반 모델이어야 합니다.\n"
+                                f"  [How to fix (Next Action)]: app.types.* 경로의 Pydantic 모델을 response_model로 지정하세요."
+                            )
+                        forbidden = [
+                            name
+                            for name in app_paths
+                            if not name.startswith(ALLOWED_IO_MODULE_PREFIX)
+                        ]
+                        if forbidden:
+                            violations.append(
+                                f"[FastAPI Contract Error] {relative_file}:{dec.lineno}\n"
+                                f"  -> '{route_path}' 라우트의 response_model에서 app/types 외 경로를 사용했습니다: {forbidden[0]}\n"
+                                f"  [How to fix (Next Action)]: API 입출력 모델은 app.types.*로 통일하세요."
+                            )
+                        break
+                if has_response_model:
                     break
-            if has_response_model:
-                break
 
-        if not has_response_model:
-            violations.append(
-                f"[FastAPI Contract Error] {relative_file}:{fn_node.lineno}\n"
-                f"  -> '{route_path}' 라우트 데코레이터에 response_model이 없습니다.\n"
-                f"  [How to fix (Next Action)]: @router.<method>(..., response_model=YourResponseModel) 형태로 지정하세요."
-            )
+            if not has_response_model:
+                violations.append(
+                    f"[FastAPI Contract Error] {relative_file}:{fn_node.lineno}\n"
+                    f"  -> '{route_path}' 라우트 데코레이터에 response_model이 없습니다.\n"
+                    f"  [How to fix (Next Action)]: @router.<method>(..., response_model=YourResponseModel) 형태로 지정하세요."
+                )
 
         for node in ast.walk(fn_node):
             if isinstance(node, ast.Return) and isinstance(

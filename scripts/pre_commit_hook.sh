@@ -16,6 +16,9 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
 
+# pre-commit 훅 실행 시 PATH가 축소되는 환경을 대비해 uv 경로를 선반영한다.
+export PATH="$(dirname "${UV_BIN}"):${PATH}"
+
 # 기계적 하네스(단방향 헌법 및 린터) 개입 훅
 echo ""
 echo "========================================="

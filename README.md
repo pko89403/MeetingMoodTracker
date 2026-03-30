@@ -14,6 +14,14 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
 - setup script(`scripts/setup_worktree.sh`)는 `UV_PROJECT_ENVIRONMENT=.venv`를 강제합니다.
 - 패키지 설치 캐시는 `UV_CACHE_DIR`(기본 `~/.cache/uv`)를 재사용해 설치 비용을 줄입니다.
 - Codex 환경 등록은 `.codex/environments/environment.toml`의 `[setup].script`를 사용합니다.
+- setup script는 현재 worktree에 `dev.env`/`prod.env`가 없을 때 `main` worktree에서 자동 복사합니다.
+- setup script는 `uv` 바이너리 경로를 `PATH`에 선반영해 pre-commit 훅에서도 동일 실행 환경을 유지합니다.
+- `dev.env`, `prod.env`는 로컬 전용 파일이며 Git에 커밋하지 않습니다.
+
+## Codex IDE Actions
+
+- `FastAPI 실행`: `./scripts/run_api.sh`
+- `Streamlit 실행`: `./scripts/run_ui.sh`
 
 ## Turn Sentiment API
 
@@ -48,6 +56,34 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
   - `422` if required keys are missing
   - `500` if env file is missing or `APP_ENV` is invalid
   - 오류 응답 `detail`에는 `error_code`, `message_ko`, `message_en`가 포함됩니다.
+
+## Analyze Inspect APIs
+
+- 기존 유지:
+  - `POST /api/v1/analyze` (`AnalyzeRequest -> AnalyzeResponse`)
+- 신규 inspect REST:
+  - `POST /api/v1/analyze/inspect`
+  - 반환: `request_id`, `result`, `logic_steps`, `logs`
+- 신규 inspect SSE:
+  - `POST /api/v1/analyze/inspect/stream` (`text/event-stream`)
+  - 이벤트 순서: `start -> log* -> result -> done` (오류 시 `error`)
+- 구현 원칙:
+  - `/analyze`와 `/inspect`는 동일한 서비스 메서드 `run_analyze_pipeline`을 호출합니다.
+  - analyze 로그는 메모리 링버퍼(`maxlen=200`)에 저장됩니다.
+
+## Streamlit 테스트 UI
+
+- 실행 전제:
+  - FastAPI 서버 실행: `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+- Streamlit 실행:
+  - `./scripts/run_ui.sh`
+  - 또는 `ANALYZE_API_BASE_URL=http://localhost:8000 uv run streamlit run app/ui/analyze_console.py`
+- UI 동작:
+  - 기본 모드: SSE(`/api/v1/analyze/inspect/stream`) 사용
+  - 실패 시 fallback: inspect REST(`/api/v1/analyze/inspect`)
+  - `화면 Clear`: 현재 표시 중인 결과/에러를 초기화
+  - `히스토리 삭제`: 저장된 요청 히스토리를 전체 삭제
+  - 요청 성공 시 최신 30건 히스토리 자동 저장 및 재조회(`표시할 결과 선택`)
 
 ## 운영 시 유의사항
 

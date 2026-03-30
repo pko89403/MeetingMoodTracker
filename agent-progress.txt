@@ -85,3 +85,17 @@
   - `uv run ruff check .` 통과
   - `uv run pytest tests -v --maxfail=1 --tb=short` 통과 (27 passed)
   - `uv run python harness/runner/agent_runner.py --mode full` 통과
+---
+## [2026-03-30] Analyze Inspect 확장 (REST + SSE) 및 Streamlit 테스트 UI 추가
+- **수행 내역**:
+  1. `app/service/analyze_service.py`에 단일 공통 메서드 `run_analyze_pipeline`을 추가하여 `/analyze`, `/analyze/inspect`, `/analyze/inspect/stream`이 동일 알고리즘을 호출하도록 통합.
+  2. `app/types/analyze_inspect.py`에 inspect/SSE 전용 타입(`AnalyzeInspectResponse`, `AnalyzeLogicStep`, `AnalyzeLogEntry`, `AnalyzeSseEventPayload`)을 추가.
+  3. `app/runtime/analyze.py`에 inspect REST/SSE 라우트를 신규 구현하고, 기존 `/api/v1/analyze`는 기존 응답 계약을 유지하면서 공통 메서드 결과만 반환하도록 변경.
+  4. analyze 실행 로그를 메모리 링버퍼(`maxlen=200`)로 저장하는 정책을 서비스 레이어에 적용.
+  5. Streamlit UI `app/ui/analyze_console.py`와 실행 스크립트 `scripts/run_ui.sh`를 추가하여 SSE 우선 + REST fallback 표시 흐름 구현.
+  6. FastAPI 계약 검사기(`harness/validators/fastapi_contract_checker.py`)를 확장해 허용 경로(`/analyze/inspect/stream`)의 SSE만 예외 허용하고, 나머지 라우트는 기존 response_model 강제를 유지.
+  7. 관련 테스트(`tests/test_analyze_inspect.py`, `tests/architecture/test_fastapi_contracts.py`) 및 문서(`README.md`, `docs/ARCHITECTURE.md`, `docs/DESIGN.md`)를 동기화.
+  8. 사용자 요청에 따라 `feature_list.json`에 Streamlit inspect UI 기능 항목을 반영.
+- **검증 결과**:
+  - `python3 -m py_compile app/runtime/analyze.py app/service/analyze_service.py app/types/analyze_inspect.py app/ui/analyze_console.py harness/validators/fastapi_contract_checker.py tests/test_analyze_inspect.py tests/architecture/test_fastapi_contracts.py` 통과
+  - 현재 세션 실행 환경에는 `uv`, `ruff`, `pytest`가 설치되어 있지 않아 하네스/테스트 전체 실행은 미수행
