@@ -8,6 +8,13 @@ A FastAPI-based application that analyzes meeting transcripts to accurately iden
 - 회의 발화 입력은 한국어를 우선 지원하며, 한/영 혼합 발화도 지원합니다.
 - 코드 식별자는 영어를 유지하고, 문서/설명/docstring은 한국어 중심으로 관리합니다.
 
+## Codex Worktree Setup
+
+- worktree별 가상환경은 프로젝트 루트의 `.venv`를 사용합니다.
+- setup script(`scripts/setup_worktree.sh`)는 `UV_PROJECT_ENVIRONMENT=.venv`를 강제합니다.
+- 패키지 설치 캐시는 `UV_CACHE_DIR`(기본 `~/.cache/uv`)를 재사용해 설치 비용을 줄입니다.
+- Codex 환경 등록은 `.codex/environments/environment.toml`의 `[setup].script`를 사용합니다.
+
 ## Turn Sentiment API
 
 - Endpoint: `POST /api/v1/sentiment/turn`

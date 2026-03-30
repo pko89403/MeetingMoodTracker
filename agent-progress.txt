@@ -2,6 +2,18 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-03-30] Codex worktree setup 표준화 (worktree별 venv + uv cache 재사용)
+- **수행 내역**:
+  1. `scripts/setup_worktree.sh`를 추가/강화하여 `UV_PROJECT_ENVIRONMENT=<worktree>/.venv`를 강제하고 `uv venv` + `uv sync --locked` 순서로 표준화.
+  2. `UV_CACHE_DIR` 기본값을 `~/.cache/uv`로 고정하여 worktree 간 설치 캐시 재사용 정책을 명시.
+  3. `.codex/environments/environment.toml`의 `[setup].script`를 `./scripts/setup_worktree.sh`로 연결.
+  4. `AGENTS.md`, `README.md`, `docs/AGENT_OPERATIONS_GUIDE.md`에 동일 정책을 문서화하여 에이전트 반복 실행 방식을 통일.
+  5. 스크립트 실행 위치와 무관하게 동작하도록 프로젝트 루트 계산/이동(`SCRIPT_DIR` 기반)과 기존 `.venv` 재사용 분기(`pyvenv.cfg` 체크)를 추가.
+- **검증 결과**:
+  - `bash -n scripts/setup_worktree.sh` 통과
+  - `./scripts/setup_worktree.sh` 통과 (worktree `.venv` 생성 + `uv sync --locked` 완료)
+  - `(cd app && ../scripts/setup_worktree.sh)` 통과 (서브디렉터리 실행 시에도 동일 `.venv`/sync 동작)
+---
 ## [2026-03-26] 하네스 인프라 확립, 기록 시스템, 초기 API 스켈레톤 구축
 - **수행 내역**:
   1. 기계적 SDD 원칙에 입각한 AST 의존성 체커(`arch_checker.py`), 커스텀 에이전트 린터(`AgentWorkflowLinter`), 래퍼 러너(`agent_runner.py`)를 개발하여 하네스 구축.

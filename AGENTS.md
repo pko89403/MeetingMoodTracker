@@ -17,6 +17,14 @@ MeetingMoodTracker 프로젝트에 새로 진입한 에이전트를 위한 **최
 - **`feature_list.json`**: 점진적으로 완수해야 할 단일 기능 명세서. 반드시 `"passes": false`인 1개의 기능 구현 및 통과에만 집중하십시오. 전체를 한 번에 리팩토링하지 마십시오.
 - **`init.sh`**: 프로젝트 셋업, E2E 기본 테스트 실행 및 로컬 서버를 즉시 구동하는 스크립트.
 
+## ⚙️ 1-1. Codex Worktree Setup 규칙 (필수)
+모든 Codex worktree는 아래 동일한 방식으로 셋업합니다.
+- **실행 파일**: `scripts/setup_worktree.sh`
+- **환경 등록 파일**: `.codex/environments/environment.toml`의 `[setup].script`
+- **가상환경 정책**: 전역/공유 venv를 사용하지 않고, worktree 루트의 `.venv`만 사용
+- **캐시 정책**: `UV_CACHE_DIR`는 홈 캐시(`~/.cache/uv`)를 재사용하여 설치 비용 최소화
+- **실행 순서**: worktree 진입 직후 setup script를 먼저 실행한 뒤 개발/테스트를 진행
+
 ## 📖 2. 시스템 룰 및 기록 (`docs/` - System of Record)
 하네스 원칙, 아키텍처 제약, 설계안을 파악할 때 확인하십시오:
 - **`docs/ARCHITECTURE.md`**: 하네스(린터/러너) 및 모듈 간의 의존성 구조 제약 조건.
