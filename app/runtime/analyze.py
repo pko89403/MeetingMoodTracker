@@ -1,9 +1,8 @@
 """회의록 analyze/inspect API 런타임 라우트."""
 
+import asyncio
 import json
-from queue import Queue
-from threading import Thread
-from typing import Iterator
+from typing import AsyncIterator
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -38,20 +37,20 @@ def _raise_analyze_llm_failure(exc: AnalyzeInferenceError) -> None:
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-def analyze_meeting(request: AnalyzeRequest) -> AnalyzeResponse:
+async def analyze_meeting(request: AnalyzeRequest) -> AnalyzeResponse:
     """기존 analyze 계약을 유지하면서 공통 파이프라인 결과만 반환한다."""
     try:
-        inspect_result = run_analyze_pipeline(request=request)
+        inspect_result = await run_analyze_pipeline(request=request)
     except AnalyzeInferenceError as exc:
         _raise_analyze_llm_failure(exc=exc)
     return inspect_result.result
 
 
 @router.post("/analyze/inspect", response_model=AnalyzeInspectResponse)
-def inspect_analyze_meeting(request: AnalyzeRequest) -> AnalyzeInspectResponse:
+async def inspect_analyze_meeting(request: AnalyzeRequest) -> AnalyzeInspectResponse:
     """analyze 실행 결과와 내부 추적 정보(steps/logs)를 함께 반환한다."""
     try:
-        return run_analyze_pipeline(request=request)
+        return await run_analyze_pipeline(request=request)
     except AnalyzeInferenceError as exc:
         _raise_analyze_llm_failure(exc=exc)
 
@@ -63,32 +62,28 @@ def _build_sse_frame(payload: AnalyzeSseEventPayload) -> str:
     return f"event: {event_name}\ndata: {payload_json}\n\n"
 
 
-def _iterate_inspect_stream(request: AnalyzeRequest) -> Iterator[str]:
+async def _iterate_inspect_stream(request: AnalyzeRequest) -> AsyncIterator[str]:
     """inspect 실행 결과를 SSE 이벤트 시퀀스로 변환해 전송한다."""
     request_id = create_analyze_request_id()
-    log_queue: Queue[AnalyzeLogEntry | None] = Queue()
-    worker_state: dict[str, AnalyzeInspectResponse | Exception | None] = {
-        "inspect_result": None,
-        "error": None,
-    }
+    log_queue: asyncio.Queue[AnalyzeLogEntry | None] = asyncio.Queue()
 
     def _on_log(entry: AnalyzeLogEntry) -> None:
-        log_queue.put(entry)
+        log_queue.put_nowait(entry)
 
-    def _run_pipeline_in_worker() -> None:
+    async def _run_pipeline() -> AnalyzeInspectResponse | Exception:
         try:
-            worker_state["inspect_result"] = run_analyze_pipeline(
+            return await run_analyze_pipeline(
                 request=request,
                 on_log=_on_log,
                 request_id=request_id,
             )
         except Exception as exc:
-            worker_state["error"] = exc
+            return exc
         finally:
-            log_queue.put(None)
+            log_queue.put_nowait(None)
 
-    worker = Thread(target=_run_pipeline_in_worker, daemon=True)
-    worker.start()
+    # 파이프라인을 비동기 태스크로 실행
+    pipeline_task = asyncio.create_task(_run_pipeline())
 
     yield _build_sse_frame(
         AnalyzeSseEventPayload(
@@ -100,7 +95,7 @@ def _iterate_inspect_stream(request: AnalyzeRequest) -> Iterator[str]:
     )
 
     while True:
-        log_entry = log_queue.get()
+        log_entry = await log_queue.get()
         if log_entry is None:
             break
         yield _build_sse_frame(
@@ -113,29 +108,19 @@ def _iterate_inspect_stream(request: AnalyzeRequest) -> Iterator[str]:
             )
         )
 
-    worker.join()
-    if isinstance(worker_state["error"], Exception):
-        error = worker_state["error"]
+    result_or_exc = await pipeline_task
+
+    if isinstance(result_or_exc, Exception):
         yield _build_sse_frame(
             AnalyzeSseEventPayload(
                 event="error",
                 request_id=request_id,
-                message_ko=f"analyze inspect 스트림 처리 중 오류가 발생했습니다: {error}",
+                message_ko=f"analyze inspect 스트림 처리 중 오류가 발생했습니다: {result_or_exc}",
             )
         )
         return
 
-    inspect_result = worker_state["inspect_result"]
-    if not isinstance(inspect_result, AnalyzeInspectResponse):
-        yield _build_sse_frame(
-            AnalyzeSseEventPayload(
-                event="error",
-                request_id=request_id,
-                message_ko="analyze inspect 스트림 처리 중 결과를 확인하지 못했습니다.",
-            )
-        )
-        return
-
+    inspect_result = result_or_exc
     yield _build_sse_frame(
         AnalyzeSseEventPayload(
             event="result",
@@ -153,7 +138,7 @@ def _iterate_inspect_stream(request: AnalyzeRequest) -> Iterator[str]:
 
 
 @router.post("/analyze/inspect/stream", response_class=StreamingResponse)
-def inspect_analyze_meeting_stream(request: AnalyzeRequest) -> StreamingResponse:
+async def inspect_analyze_meeting_stream(request: AnalyzeRequest) -> StreamingResponse:
     """inspect 결과를 SSE(`text/event-stream`)로 전달한다."""
     return StreamingResponse(
         _iterate_inspect_stream(request=request),

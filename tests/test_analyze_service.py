@@ -53,7 +53,10 @@ class _FakeCompletionsApi:
         call_index = len(self.calls) - 1
         if self.on_call_start is not None:
             self.on_call_start(call_index)
-        if self.raise_on_call_index is not None and call_index == self.raise_on_call_index:
+        if (
+            self.raise_on_call_index is not None
+            and call_index == self.raise_on_call_index
+        ):
             raise RuntimeError("upstream error")
         if call_index >= len(self.responses):
             raise RuntimeError("response not prepared for this call")
@@ -88,7 +91,9 @@ class _FakeClient:
         )
 
 
-def _build_client_factory(*clients: _FakeClient) -> Callable[[LlmConfigResponse], _FakeClient]:
+def _build_client_factory(
+    *clients: _FakeClient,
+) -> Callable[[LlmConfigResponse], _FakeClient]:
     client_queue = list(clients)
 
     def _factory(llm_config: LlmConfigResponse) -> _FakeClient:
@@ -261,7 +266,9 @@ def test_extract_topics_with_llm_raises_on_empty_topics() -> None:
 
 
 def test_analyze_sentiment_with_llm_raises_on_schema_mismatch() -> None:
-    fake_client = _FakeClient(responses=['{"sentiment":{"positive":{"confidence":"bad"}}}'])
+    fake_client = _FakeClient(
+        responses=['{"sentiment":{"positive":{"confidence":"bad"}}}']
+    )
 
     with pytest.raises(AnalyzeInferenceError) as exc_info:
         analyze_sentiment_with_llm(
@@ -336,7 +343,9 @@ def test_resolve_api_version_prefers_llm_api_version_when_present() -> None:
     assert _resolve_api_version(llm_config=cfg) == "2025-04-01-preview"
 
 
-def test_resolve_api_version_falls_back_to_model_version_when_api_version_missing() -> None:
+def test_resolve_api_version_falls_back_to_model_version_when_api_version_missing() -> (
+    None
+):
     cfg = _mock_llm_config()
     cfg.LLM_API_VERSION = None
     cfg.LLM_MODEL_VERSION = "2025-08-07"

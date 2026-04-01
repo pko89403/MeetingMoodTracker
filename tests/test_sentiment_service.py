@@ -134,7 +134,9 @@ def test_resolve_api_version_prefers_llm_api_version_when_present() -> None:
     assert _resolve_api_version(llm_config=cfg) == "2025-04-01-preview"
 
 
-def test_resolve_api_version_falls_back_to_model_version_when_api_version_missing() -> None:
+def test_resolve_api_version_falls_back_to_model_version_when_api_version_missing() -> (
+    None
+):
     cfg = _mock_llm_config()
     cfg.LLM_API_VERSION = None
     cfg.LLM_MODEL_VERSION = "2025-08-07"
