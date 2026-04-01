@@ -42,7 +42,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -50,7 +54,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -58,7 +66,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -66,7 +78,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -74,7 +90,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -82,7 +102,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -90,7 +114,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -98,7 +126,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -122,7 +154,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -130,7 +166,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -138,7 +178,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -146,7 +190,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -154,7 +202,11 @@ INTEGRATED_EMOTION_JSON_SCHEMA: dict[str, Any] = {
                         "type": "object",
                         "additionalProperties": False,
                         "properties": {
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100,
+                            },
                         },
                         "required": ["confidence"],
                     },
@@ -364,7 +416,9 @@ def _convert_meeting_signals(raw_signals: _RawMeetingSignals) -> MeetingSignals:
             confidence=_to_score_int(raw_signals.tension.confidence, stage="inference"),
         ),
         alignment=MeetingSignalConfidenceValue(
-            confidence=_to_score_int(raw_signals.alignment.confidence, stage="inference"),
+            confidence=_to_score_int(
+                raw_signals.alignment.confidence, stage="inference"
+            ),
         ),
         urgency=MeetingSignalConfidenceValue(
             confidence=_to_score_int(raw_signals.urgency.confidence, stage="inference"),
@@ -449,7 +503,7 @@ async def extract_all_emotions_with_llm(
     base_emotions = _convert_base_emotions(raw_scores=parsed.emotions)
     meeting_signals = _convert_meeting_signals(raw_signals=parsed.meeting_signals)
     emerging_emotions = _normalize_emerging_emotions(raw_items=parsed.emerging_emotions)
-    
+
     return base_emotions, meeting_signals, emerging_emotions
 
 
@@ -464,7 +518,11 @@ async def classify_turn_emotion(request: TurnEmotionRequest) -> TurnEmotionRespo
             message="LLM configuration loading failed.",
         ) from exc
 
-    base_emotions, meeting_signals, emerging_emotions = await extract_all_emotions_with_llm(
+    (
+        base_emotions,
+        meeting_signals,
+        emerging_emotions,
+    ) = await extract_all_emotions_with_llm(
         client=client,
         deployment_name=llm_config.LLM_DEPLOYMENT_NAME,
         request=request,
