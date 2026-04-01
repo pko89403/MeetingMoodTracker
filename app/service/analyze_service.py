@@ -14,8 +14,7 @@ from openai import AsyncAzureOpenAI
 
 from app.service.emotion_service import (
     EmotionInferenceError,
-    extract_base_emotions_with_llm,
-    extract_meeting_signals_with_llm,
+    extract_all_emotions_with_llm,
 )
 from app.service.llm_config_service import get_llm_config
 from app.types.analyze_inspect import (
@@ -35,8 +34,11 @@ from app.types.mood import (
 
 DEFAULT_AZURE_OPENAI_API_VERSION = "2025-04-01-preview"
 TOPIC_REASONING_EFFORT = "none"
-SENTIMENT_REASONING_EFFORT = "minimal"
+SENTIMENT_REASONING_EFFORT = "none"
 MAX_ANALYZE_LOG_BUFFER_SIZE = 200
+TOPIC_MAX_OUTPUT_TOKENS = 1024
+SENTIMENT_MAX_OUTPUT_TOKENS = 1024
+EMOTION_MAX_OUTPUT_TOKENS = 2048
 
 TOPIC_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
     "name": "meeting_topic_extraction",
@@ -149,38 +151,43 @@ class AnalyzeInferenceError(Exception):
         super().__init__(message)
 
 
-def _build_analyze_turn_emotion_request(request: AnalyzeRequest) -> TurnEmotionRequest:
-    """analyze 입력 텍스트를 emotion 추론용 턴 요청 스키마로 변환한다."""
+def _build_analyze_turn_emotion_request(
+    original_text: str, meeting_id: str | None = None
+) -> TurnEmotionRequest:
+    """분석 텍스트를 emotion 추론용 턴 요청 스키마로 변환한다."""
     return TurnEmotionRequest(
-        meeting_id=request.meeting_id,
+        meeting_id=meeting_id or "analyze_meeting",
         turn_id="analyze_turn",
         speaker_id=None,
-        utterance_text=request.text,
+        utterance_text=original_text,
     )
 
 
 async def analyze_emotion_with_llm(
     client: AsyncAzureOpenAI,
     deployment_name: str,
-    request: AnalyzeRequest,
+    original_text: str,
+    meeting_id: str | None = None,
+    max_completion_tokens: int = EMOTION_MAX_OUTPUT_TOKENS,
 ) -> TurnEmotionResponse:
-    """emotion 서비스의 2-stage 비동기 추론을 analyze 파이프라인에 통합한다."""
-    emotion_request = _build_analyze_turn_emotion_request(request=request)
+    """emotion 서비스의 통합 1단계 비동기 추론을 analyze 파이프라인에 통합한다."""
+    emotion_request = _build_analyze_turn_emotion_request(
+        original_text=original_text, meeting_id=meeting_id
+    )
     try:
-        base_emotions = await extract_base_emotions_with_llm(
+        (
+            base_emotions,
+            meeting_signals,
+            emerging_emotions,
+        ) = await extract_all_emotions_with_llm(
             client=client,
             deployment_name=deployment_name,
             request=emotion_request,
-        )
-        meeting_signals, emerging_emotions = await extract_meeting_signals_with_llm(
-            client=client,
-            deployment_name=deployment_name,
-            request=emotion_request,
-            base_emotions=base_emotions,
+            max_completion_tokens=max_completion_tokens,
         )
     except EmotionInferenceError as exc:
         raise AnalyzeInferenceError(
-            stage=f"emotion_{exc.stage}",
+            stage=exc.stage,
             message=str(exc),
         ) from exc
 
@@ -266,7 +273,7 @@ def _resolve_api_version(llm_config: LlmConfigResponse) -> str:
     return DEFAULT_AZURE_OPENAI_API_VERSION
 
 
-def _build_async_azure_client(llm_config: LlmConfigResponse) -> AsyncAzureOpenAI:
+def _build_azure_client(llm_config: LlmConfigResponse) -> AsyncAzureOpenAI:
     """검증된 LLM 설정으로 Azure OpenAI SDK 비동기 클라이언트를 생성한다."""
     return AsyncAzureOpenAI(
         api_key=llm_config.LLM_API_KEY,
@@ -422,6 +429,7 @@ async def extract_topics_with_llm(
     client: AsyncAzureOpenAI,
     deployment_name: str,
     preprocessed_text: str,
+    max_completion_tokens: int = TOPIC_MAX_OUTPUT_TOKENS,
 ) -> list[str]:
     """비동기 LLM JSON structured 출력으로 토픽 리스트를 추출한다."""
     if preprocessed_text.strip() == "":
@@ -433,6 +441,7 @@ async def extract_topics_with_llm(
         completion = await client.chat.completions.create(
             model=deployment_name,
             reasoning_effort=TOPIC_REASONING_EFFORT,
+            max_completion_tokens=max_completion_tokens,
             response_format={
                 "type": "json_schema",
                 "json_schema": TOPIC_EXTRACTION_JSON_SCHEMA,
@@ -472,6 +481,7 @@ async def analyze_sentiment_with_llm(
     deployment_name: str,
     original_text: str,
     topics: list[str] | None = None,
+    max_completion_tokens: int = SENTIMENT_MAX_OUTPUT_TOKENS,
 ) -> AnalyzeSentiment:
     """토픽 컨텍스트(있을 경우)와 원문 텍스트를 사용해 감정 분포를 추출한다."""
     if original_text.strip() == "":
@@ -483,6 +493,7 @@ async def analyze_sentiment_with_llm(
         completion = await client.chat.completions.create(
             model=deployment_name,
             reasoning_effort=SENTIMENT_REASONING_EFFORT,
+            max_completion_tokens=max_completion_tokens,
             response_format={
                 "type": "json_schema",
                 "json_schema": SENTIMENT_EXTRACTION_JSON_SCHEMA,
@@ -551,7 +562,7 @@ async def run_analyze_pipeline(
 
     try:
         llm_config = get_llm_config()
-        client = _build_async_azure_client(llm_config=llm_config)
+        client = _build_azure_client(llm_config=llm_config)
     except Exception as exc:
         raise AnalyzeInferenceError(
             stage="config",
@@ -576,7 +587,9 @@ async def run_analyze_pipeline(
         emotion_task = analyze_emotion_with_llm(
             client,
             llm_config.LLM_DEPLOYMENT_NAME,
-            request,
+            request.text,
+            request.meeting_id,
+            EMOTION_MAX_OUTPUT_TOKENS,
         )
 
         # 모든 추론 작업을 동시에 실행
