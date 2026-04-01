@@ -60,7 +60,7 @@ class _FakeCompletionsApi:
             and call_index == self.raise_on_call_index
         ):
             raise RuntimeError("upstream error")
-        
+
         # 힌트: 시스템 프롬프트의 고유 문구를 보고 적절한 응답을 선택한다
         msgs = kwargs.get("messages", [])
         system_content = ""
@@ -68,18 +68,22 @@ class _FakeCompletionsApi:
             if m.get("role") == "system":
                 system_content = m.get("content", "").lower()
                 break
-        
+
         if "sentiment distribution" in system_content:
-            return _FakeCompletion(content='{"sentiment":{"positive":{"confidence":62.5},"negative":{"confidence":12.5},"neutral":{"confidence":25.0}}}')
+            return _FakeCompletion(
+                content='{"sentiment":{"positive":{"confidence":62.5},"negative":{"confidence":12.5},"neutral":{"confidence":25.0}}}'
+            )
         if "concise meeting topics" in system_content:
             return _FakeCompletion(content='{"topics":["Architecture", "Budget"]}')
         if "meeting-specific signals" in system_content:
             return _FakeCompletion(content=_valid_emotion_payload())
-            
+
         if call_index < len(self.responses):
             return _FakeCompletion(content=self.responses[call_index])
-            
-        raise RuntimeError(f"response not prepared for system_content: {system_content[:50]}")
+
+        raise RuntimeError(
+            f"response not prepared for system_content: {system_content[:50]}"
+        )
 
 
 class _FakeChatApi:
@@ -157,20 +161,31 @@ async def test_run_analyze_pipeline_uses_fanout_and_token_limits(monkeypatch) ->
     client = _FakeClient(responses=[])
 
     monkeypatch.setattr(analyze_service, "get_llm_config", _mock_llm_config)
-    monkeypatch.setattr(analyze_service, "_build_azure_client", lambda llm_config: client)
+    monkeypatch.setattr(
+        analyze_service, "_build_azure_client", lambda llm_config: client
+    )
 
     response = await run_analyze_pipeline(request=_sample_request())
 
     assert response.result.topic == "Architecture, Budget"
     assert response.result.sentiment.positive.confidence == 63
     assert response.result.emotion.emotions.joy.confidence == 35
+    assert response.result.rubric.dominance >= 0
+    assert response.result.rubric.efficiency >= 0
+    assert response.result.rubric.cohesion >= 0
 
     assert len(client.chat.completions.calls) == 3
 
     # 호출별 토큰 제한 확인
-    topic_call = next(c for c in client.chat.completions.calls if "topics" in str(c).lower())
-    sentiment_call = next(c for c in client.chat.completions.calls if "sentiment" in str(c).lower())
-    emotion_call = next(c for c in client.chat.completions.calls if "signals" in str(c).lower())
+    topic_call = next(
+        c for c in client.chat.completions.calls if "topics" in str(c).lower()
+    )
+    sentiment_call = next(
+        c for c in client.chat.completions.calls if "sentiment" in str(c).lower()
+    )
+    emotion_call = next(
+        c for c in client.chat.completions.calls if "signals" in str(c).lower()
+    )
 
     assert topic_call["max_completion_tokens"] == TOPIC_MAX_OUTPUT_TOKENS
     assert sentiment_call["max_completion_tokens"] == SENTIMENT_MAX_OUTPUT_TOKENS
@@ -178,7 +193,9 @@ async def test_run_analyze_pipeline_uses_fanout_and_token_limits(monkeypatch) ->
 
 
 @pytest.mark.asyncio
-async def test_run_analyze_pipeline_executes_three_branches_in_parallel(monkeypatch) -> None:
+async def test_run_analyze_pipeline_executes_three_branches_in_parallel(
+    monkeypatch,
+) -> None:
     barrier = asyncio.Barrier(3)
 
     async def _wait_parallel_start(call_index: int) -> None:
@@ -190,7 +207,9 @@ async def test_run_analyze_pipeline_executes_three_branches_in_parallel(monkeypa
     )
 
     monkeypatch.setattr(analyze_service, "get_llm_config", _mock_llm_config)
-    monkeypatch.setattr(analyze_service, "_build_azure_client", lambda llm_config: client)
+    monkeypatch.setattr(
+        analyze_service, "_build_azure_client", lambda llm_config: client
+    )
 
     response = await run_analyze_pipeline(request=_sample_request())
     assert "Architecture" in response.result.topic
@@ -207,8 +226,10 @@ def test_preprocess_for_topic_removes_stopwords_and_keeps_keywords() -> None:
 @pytest.mark.asyncio
 async def test_extract_topics_with_llm_raises_on_non_json() -> None:
     fake_client = _FakeClient(responses=[])
+
     async def mock_create(**kwargs):
         return _FakeCompletion(content="not-json")
+
     fake_client.chat.completions.create = mock_create
 
     with pytest.raises(AnalyzeInferenceError) as exc_info:
@@ -224,8 +245,10 @@ async def test_extract_topics_with_llm_raises_on_non_json() -> None:
 @pytest.mark.asyncio
 async def test_extract_topics_with_llm_raises_on_empty_topics() -> None:
     fake_client = _FakeClient(responses=[])
+
     async def mock_create(**kwargs):
         return _FakeCompletion(content='{"topics":[]}')
+
     fake_client.chat.completions.create = mock_create
 
     with pytest.raises(AnalyzeInferenceError) as exc_info:
@@ -241,8 +264,12 @@ async def test_extract_topics_with_llm_raises_on_empty_topics() -> None:
 @pytest.mark.asyncio
 async def test_analyze_sentiment_with_llm_raises_on_schema_mismatch() -> None:
     fake_client = _FakeClient(responses=[])
+
     async def mock_create(**kwargs):
-        return _FakeCompletion(content='{"sentiment":{"positive":{"confidence":"bad"}}}')
+        return _FakeCompletion(
+            content='{"sentiment":{"positive":{"confidence":"bad"}}}'
+        )
+
     fake_client.chat.completions.create = mock_create
 
     with pytest.raises(AnalyzeInferenceError) as exc_info:
@@ -258,8 +285,10 @@ async def test_analyze_sentiment_with_llm_raises_on_schema_mismatch() -> None:
 @pytest.mark.asyncio
 async def test_analyze_emotion_with_llm_raises_on_schema_mismatch() -> None:
     fake_client = _FakeClient(responses=[])
+
     async def mock_create(**kwargs):
         return _FakeCompletion(content='{"emotions":{"anger":{"confidence":"bad"}}}')
+
     fake_client.chat.completions.create = mock_create
 
     with pytest.raises(AnalyzeInferenceError) as exc_info:
@@ -273,22 +302,29 @@ async def test_analyze_emotion_with_llm_raises_on_schema_mismatch() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_analyze_pipeline_raises_when_sentiment_branch_fails(monkeypatch) -> None:
+async def test_run_analyze_pipeline_raises_when_sentiment_branch_fails(
+    monkeypatch,
+) -> None:
     client = _FakeClient(responses=[])
-    
+
     async def mock_create(**kwargs):
         msgs = kwargs.get("messages", [])
-        sys = next((m.get("content", "").lower() for m in msgs if m.get("role") == "system"), "")
+        sys = next(
+            (m.get("content", "").lower() for m in msgs if m.get("role") == "system"),
+            "",
+        )
         if "sentiment distribution" in sys:
             raise RuntimeError("upstream error")
         if "concise meeting topics" in sys:
             return _FakeCompletion(content='{"topics":["T"]}')
         return _FakeCompletion(content=_valid_emotion_payload())
-        
+
     client.chat.completions.create = mock_create
 
     monkeypatch.setattr(analyze_service, "get_llm_config", _mock_llm_config)
-    monkeypatch.setattr(analyze_service, "_build_azure_client", lambda llm_config: client)
+    monkeypatch.setattr(
+        analyze_service, "_build_azure_client", lambda llm_config: client
+    )
 
     with pytest.raises(AnalyzeInferenceError) as exc_info:
         await run_analyze_pipeline(request=_sample_request())
@@ -297,24 +333,33 @@ async def test_run_analyze_pipeline_raises_when_sentiment_branch_fails(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_run_analyze_pipeline_raises_when_emotion_branch_fails(monkeypatch) -> None:
+async def test_run_analyze_pipeline_raises_when_emotion_branch_fails(
+    monkeypatch,
+) -> None:
     client = _FakeClient(responses=[])
-    
+
     async def mock_create(**kwargs):
         msgs = kwargs.get("messages", [])
-        sys = next((m.get("content", "").lower() for m in msgs if m.get("role") == "system"), "")
+        sys = next(
+            (m.get("content", "").lower() for m in msgs if m.get("role") == "system"),
+            "",
+        )
         if "meeting-specific signals" in sys:
             raise RuntimeError("upstream error")
         if "concise meeting topics" in sys:
             return _FakeCompletion(content='{"topics":["T"]}')
         if "sentiment distribution" in sys:
-            return _FakeCompletion(content='{"sentiment":{"positive":{"confidence":50},"negative":{"confidence":25},"neutral":{"confidence":25}}}')
+            return _FakeCompletion(
+                content='{"sentiment":{"positive":{"confidence":50},"negative":{"confidence":25},"neutral":{"confidence":25}}}'
+            )
         return _FakeCompletion(content="{}")
-        
+
     client.chat.completions.create = mock_create
 
     monkeypatch.setattr(analyze_service, "get_llm_config", _mock_llm_config)
-    monkeypatch.setattr(analyze_service, "_build_azure_client", lambda llm_config: client)
+    monkeypatch.setattr(
+        analyze_service, "_build_azure_client", lambda llm_config: client
+    )
 
     with pytest.raises(AnalyzeInferenceError) as exc_info:
         await run_analyze_pipeline(request=_sample_request())

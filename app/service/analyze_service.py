@@ -29,6 +29,7 @@ from app.types.mood import (
     AnalyzeRequest,
     AnalyzeResponse,
     AnalyzeSentiment,
+    MeetingRubrics,
     SentimentConfidence,
 )
 
@@ -195,6 +196,45 @@ async def analyze_emotion_with_llm(
         emotions=base_emotions,
         meeting_signals=meeting_signals,
         emerging_emotions=emerging_emotions,
+    )
+
+
+def calculate_final_rubrics(
+    topics: list[str],
+    sentiment: AnalyzeSentiment,
+    emotion: TurnEmotionResponse,
+) -> MeetingRubrics:
+    """추출된 모든 지표(Topic, Sentiment, Emotion)를 조합하여 최종 루브릭 지수를 산출한다."""
+    # 회의 시그널 데이터 확보
+    sig = emotion.meeting_signals
+    e = sig.engagement.confidence
+    t = sig.tension.confidence
+    c = sig.clarity.confidence
+    a = sig.alignment.confidence
+    u = sig.urgency.confidence
+
+    # 1. Dominance (주도성): 대화 주도권 및 영향력
+    # 로직: 기본 시그널 조합 + Sentiment의 Neutral이 낮을수록 주도적 분석으로 판단
+    base_dominance = e * 0.35 + t * 0.25 + c * 0.20 + a * 0.10 + u * 0.10
+    sentiment_bonus = (100.0 - sentiment.neutral.confidence) * 0.1
+    final_dominance = base_dominance + sentiment_bonus
+
+    # 2. Efficiency (효율성): 결론 도출 및 논의 생산성
+    # 로직: Clarity/Urgency 조합 + Topic이 명확히 추출되었는지(갯수) 반영
+    base_efficiency = c * 0.50 + u * 0.30 + e * 0.20
+    topic_bonus = min(len(topics) * 5.0, 15.0)  # 주제가 구체적일수록 보너스
+    final_efficiency = base_efficiency + topic_bonus
+
+    # 3. Cohesion (결속력): 팀 내 합의 및 긍정적 에너지
+    # 로직: Alignment/Engagement 조합 + Positive Sentiment 가중치 반영
+    base_cohesion = a * 0.40 + e * 0.30 + (100.0 - t) * 0.10
+    sentiment_positive_bonus = sentiment.positive.confidence * 0.2
+    final_cohesion = base_cohesion + sentiment_positive_bonus
+
+    return MeetingRubrics(
+        dominance=int(round(min(100.0, max(0.0, final_dominance)))),
+        efficiency=int(round(min(100.0, max(0.0, final_efficiency)))),
+        cohesion=int(round(min(100.0, max(0.0, final_cohesion)))),
     )
 
 
@@ -647,10 +687,16 @@ async def run_analyze_pipeline(
         on_log=on_log,
     )
 
+    # [Rule-base Pipeline] 모든 지표를 조합하여 최종 루브릭 산출
+    rubric = calculate_final_rubrics(
+        topics=topics, sentiment=sentiment, emotion=emotion
+    )
+
     result = AnalyzeResponse(
         topic=topic_str,
         sentiment=sentiment,
         emotion=emotion,
+        rubric=rubric,
     )
     _record_log(
         request_id=resolved_request_id,

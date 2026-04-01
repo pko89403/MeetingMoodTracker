@@ -50,9 +50,24 @@ class AnalyzeSentiment(BaseModel):
         return self
 
 
+class MeetingRubrics(BaseModel):
+    """추출된 모든 지표를 조합하여 도출한 화자/발화 평가 루브릭."""
+
+    dominance: int = Field(
+        ge=0, le=100, description="주도성: 대화를 이끌고 영향을 미치는 정도"
+    )
+    efficiency: int = Field(
+        ge=0, le=100, description="효율성: 논의의 명확성 및 결론 도출 의지"
+    )
+    cohesion: int = Field(
+        ge=0, le=100, description="결속력: 합의 도출 및 팀 분위기 기여도"
+    )
+
+
 class AnalyzeResponse(BaseModel):
     """회의록 분석 응답 스키마."""
 
     topic: str
     sentiment: AnalyzeSentiment
     emotion: TurnEmotionResponse
+    rubric: MeetingRubrics
