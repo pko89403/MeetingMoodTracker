@@ -2,6 +2,15 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-04-01] Dockerize 이슈 #12 종료 동기화 (`feat_ops_dockerize`)
+- **수행 내역**:
+  1. `feature_list.json`의 `feat_ops_dockerize.passes` 값을 `true`로 전환.
+  2. `scripts/sync_feature_issues.py --sync-state --write-feature-file --apply`를 실행해 GitHub Issue #12 상태를 `closed`로 동기화.
+  3. feature 메타데이터(`github_issue.state`, `synced_at`)를 최신 상태로 기록.
+- **검증 결과**:
+  - `gh issue view 12 --json state` 기준 `CLOSED` 확인
+  - `.venv/bin/python -m pytest tests/test_sync_feature_issues.py -q` 통과 (6 passed)
+---
 ## [2026-04-01] Dockerize Health-Check 반영 (`GET /healthz` + Dockerfile `HEALTHCHECK`)
 - **수행 내역**:
   1. 신규 상태 점검 API `GET /healthz`를 추가:
