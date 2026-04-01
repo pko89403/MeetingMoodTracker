@@ -61,76 +61,46 @@ class TurnEmotionRequest(BaseModel):
     utterance_text: str = Field(min_length=1, max_length=4000)
 
 
-class EmotionConfidenceEvidence(BaseModel):
-    """정서 라벨별 confidence/evidence 스키마."""
+class EmotionConfidenceValue(BaseModel):
+    """정서 라벨별 confidence 스키마 (evidence 제외)."""
 
     confidence: int = Field(ge=0, le=100)
-    evidence: str = Field(min_length=1)
-
-    @field_validator("evidence")
-    @classmethod
-    def validate_evidence(cls, value: str) -> str:
-        """evidence 문자열을 trim하고 빈 문자열을 차단한다."""
-        normalized = value.strip()
-        if normalized == "":
-            raise ValueError("evidence must not be blank.")
-        return normalized
 
 
 class EmotionScores(BaseModel):
-    """고정 8개 기본 정서 점수/근거 스키마."""
+    """고정 8개 기본 정서 점수 스키마."""
 
-    anger: EmotionConfidenceEvidence
-    joy: EmotionConfidenceEvidence
-    sadness: EmotionConfidenceEvidence
-    neutral: EmotionConfidenceEvidence
-    anxiety: EmotionConfidenceEvidence
-    frustration: EmotionConfidenceEvidence
-    excitement: EmotionConfidenceEvidence
-    confusion: EmotionConfidenceEvidence
+    anger: EmotionConfidenceValue
+    joy: EmotionConfidenceValue
+    sadness: EmotionConfidenceValue
+    neutral: EmotionConfidenceValue
+    anxiety: EmotionConfidenceValue
+    frustration: EmotionConfidenceValue
+    excitement: EmotionConfidenceValue
+    confusion: EmotionConfidenceValue
 
 
-class MeetingSignalConfidenceEvidence(BaseModel):
-    """회의 시그널 축별 confidence/evidence 스키마."""
+class MeetingSignalConfidenceValue(BaseModel):
+    """회의 시그널 축별 confidence 스키마 (evidence 제외)."""
 
     confidence: int = Field(ge=0, le=100)
-    evidence: str = Field(min_length=1)
-
-    @field_validator("evidence")
-    @classmethod
-    def validate_evidence(cls, value: str) -> str:
-        """evidence 문자열을 trim하고 빈 문자열을 차단한다."""
-        normalized = value.strip()
-        if normalized == "":
-            raise ValueError("evidence must not be blank.")
-        return normalized
 
 
 class MeetingSignals(BaseModel):
-    """회의 도메인 특화 시그널(5축) confidence/evidence 스키마."""
+    """회의 도메인 특화 시그널(5축) confidence 스키마."""
 
-    tension: MeetingSignalConfidenceEvidence
-    alignment: MeetingSignalConfidenceEvidence
-    urgency: MeetingSignalConfidenceEvidence
-    clarity: MeetingSignalConfidenceEvidence
-    engagement: MeetingSignalConfidenceEvidence
+    tension: MeetingSignalConfidenceValue
+    alignment: MeetingSignalConfidenceValue
+    urgency: MeetingSignalConfidenceValue
+    clarity: MeetingSignalConfidenceValue
+    engagement: MeetingSignalConfidenceValue
 
 
 class EmergingEmotion(BaseModel):
-    """기본 8정서 외 추가 발굴 정서 스키마."""
+    """기본 8정서 외 추가 발굴 정서 스키마 (evidence 제외)."""
 
     label: str = Field(min_length=1)
     confidence: int = Field(ge=0, le=100)
-    evidence: str = Field(min_length=1)
-
-    @field_validator("evidence")
-    @classmethod
-    def validate_evidence(cls, value: str) -> str:
-        """evidence 텍스트를 trim하고 빈 문자열을 차단한다."""
-        normalized = value.strip()
-        if normalized == "":
-            raise ValueError("text field must not be blank.")
-        return normalized
 
     @field_validator("label")
     @classmethod

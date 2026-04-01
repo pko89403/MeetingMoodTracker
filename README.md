@@ -1,207 +1,152 @@
 # Meeting Mood Tracker
 
-A FastAPI-based application that analyzes meeting transcripts to identify topic/sentiment/emotion facets and correlation signals. Built strictly with Specification-Driven Development (SDD) principles.
+회의 발화 데이터를 분석하여 주제(Topic), 감정 분포(Sentiment), 그리고 회의 특화 정서 시그널(Emotion)을 추출하는 FastAPI 기반 분석 서버입니다.
 
-## 한국어 우선 개발 가이드
+## 🚀 Quick Start
 
-- 본 프로젝트는 한국어 사용자/개발자 경험을 기본값으로 둡니다.
-- 회의 발화 입력은 한국어를 우선 지원하며, 한/영 혼합 발화도 지원합니다.
-- 코드 식별자는 영어를 유지하고, 문서/설명/docstring은 한국어 중심으로 관리합니다.
-
-## Codex Worktree Setup
-
-- worktree별 가상환경은 프로젝트 루트의 `.venv`를 사용합니다.
-- setup script(`scripts/setup_worktree.sh`)는 `UV_PROJECT_ENVIRONMENT=.venv`를 강제합니다.
-- 패키지 설치 캐시는 `UV_CACHE_DIR`(기본 `~/.cache/uv`)를 재사용해 설치 비용을 줄입니다.
-- Codex 환경 등록은 `.codex/environments/environment.toml`의 `[setup].script`를 사용합니다.
-- setup script는 현재 worktree에 `dev.env`/`prod.env`가 없을 때 `main` worktree에서 자동 복사합니다.
-- setup script는 `uv` 바이너리 경로를 `PATH`에 선반영해 pre-commit 훅에서도 동일 실행 환경을 유지합니다.
-- `dev.env`, `prod.env`는 로컬 전용 파일이며 Git에 커밋하지 않습니다.
-- setup 시 `scripts/sync_feature_issues.py`가 자동 실행되어 `feature_list.json`과 GitHub Issue를 동기화합니다.
-- `GITHUB_TOKEN`이 없으면 `gh auth token`을 사용해 토큰을 자동 확보합니다(로그인된 경우).
-- 동기화를 건너뛰려면 `SKIP_FEATURE_ISSUE_SYNC=1 ./scripts/setup_worktree.sh`로 실행합니다.
-
-## Codex IDE Actions
-
-- `FastAPI 실행`: `FASTAPI_SERVER_PORT=18000 ./scripts/run_api.sh`
-- `Streamlit 실행`: `./scripts/run_ui.sh`
-
-## Parent Compose 기반 Docker 실행 (서브모듈 대상)
-
-- 이 저장소는 `docker-compose.yml`을 직접 제공하지 않고, 상위 리포지토리에서 포함할 템플릿을 제공합니다.
-- 템플릿 위치: `docs/templates/docker-compose.parent.api.yml`
-- 기본 환경변수:
-  - `APP_ENV` (기본값: `dev`, `dev.env`/`prod.env` 선택)
-  - `FASTAPI_SERVER_PORT` (기본값: `8000`)
-  - `MEETING_MOOD_TRACKER_SUBMODULE_PATH` (기본값: `./MeetingMoodTracker`)
-- 상위 리포지토리에서 사용할 때는 템플릿 내용을 상위 `docker-compose.yml`에 반영하거나 include하여 사용합니다.
-- 템플릿은 `APP_ENV` 값에 맞춰 `${APP_ENV}.env`를 `env_file`과 컨테이너 내부 `/app/${APP_ENV}.env`에 함께 연결합니다.
-- API Docker 이미지는 `HEALTHCHECK`를 내장하며, Python 표준 라이브러리(`urllib`)로 `/healthz`를 주기적으로 점검합니다.
-
-대표 실행 예시(상위 리포지토리 루트 기준):
-
+### 1. 서버 실행 (Docker)
+본 저장소를 서브모듈로 포함하는 상위 프로젝트의 루트에서 실행합니다.
 ```bash
 export APP_ENV=dev
-export FASTAPI_SERVER_PORT=18000
-export MEETING_MOOD_TRACKER_SUBMODULE_PATH=./MeetingMoodTracker
+export FASTAPI_SERVER_PORT=8000
 docker compose up --build
 ```
 
-`prod` 실행 예시:
-
+### 2. API 검증
+서버가 정상적으로 실행되었는지 확인합니다.
 ```bash
-export APP_ENV=prod
-export FASTAPI_SERVER_PORT=18000
-export MEETING_MOOD_TRACKER_SUBMODULE_PATH=./MeetingMoodTracker
-docker compose up --build
+curl http://localhost:8000/healthz
+# 응답: {"status":"ok"}
 ```
 
-검증:
-- 브라우저에서 `http://localhost:${FASTAPI_SERVER_PORT}/docs` 접근
-- `http://localhost:${FASTAPI_SERVER_PORT}/healthz`가 `{"status":"ok"}`를 반환하는지 확인
+---
 
-## Turn Sentiment API
+## 📖 Core API Guide
 
-- Endpoint: `POST /api/v1/sentiment/turn`
-- Purpose: classify one meeting turn utterance into:
-  - `POS`
-  - `NEG`
-  - `NEUTRAL`
-- Request fields:
-  - `meeting_id`
-  - `turn_id`
-  - `speaker_id` (optional)
-  - `utterance_text`
-- Response fields:
-  - `label`
-  - `confidence` (`0.0` - `1.0`)
-  - `evidence`
+### 1. 회의록 종합 분석 (Analyze Mood)
+회의록 전체 텍스트를 입력받아 주제, 감정, 정서 신호를 한 번에 분석합니다.
 
-## Health Check API
+- **Endpoint**: `POST /api/v1/analyze`
+- **Request**:
+  ```json
+  {
+    "meeting_id": "m_20260401_001",
+    "text": "오늘 배포 일정에 대해 논의합시다. 현재 리스크가 좀 있네요."
+  }
+  ```
+- **Response**:
+  - `topic`: 핵심 주제 키워드 (쉼표 구분 문자열)
+  - `sentiment`: 긍정/부정/중립 분포 (`0~100` 정수 점수)
+  - `emotion`: 8개 기본 정서 및 5개 회의 시그널 수치
 
-- Endpoint: `GET /healthz`
-- Purpose: 프로세스 응답성(liveness) 확인
-- Response fields:
-  - `status` (`"ok"`)
+### 2. 발화 턴 단위 감정 분류 (Turn Sentiment)
+단일 발화 문장에 대한 긍/부정/중립 여부를 판단합니다.
 
-## LLM Environment Config API
+- **Endpoint**: `POST /api/v1/sentiment/turn`
+- **Request**:
+  ```json
+  {
+    "meeting_id": "m_001",
+    "turn_id": "t_014",
+    "utterance_text": "이 제안은 정말 획기적이네요! 찬성합니다."
+  }
+  ```
+- **Response**:
+  - `label`: `POS`, `NEG`, `NEUTRAL` 중 하나
+  - `confidence`: 신뢰도 (`0.0 ~ 1.0`)
 
-- Endpoint: `GET /api/env/v1`
-- Reads env file by `APP_ENV`:
-  - `APP_ENV=dev` or unset -> `dev.env`
-  - `APP_ENV=prod` -> `prod.env`
-- Returns raw values:
-  - `LLM_API_KEY`
-  - `LLM_ENDPOINT`
-  - `LLM_MODEL_NAME`
-  - `LLM_DEPLOYMENT_NAME`
-  - `LLM_API_VERSION` (optional, Azure OpenAI API version)
-  - `LLM_MODEL_VERSION` (optional, 모델 메타데이터 및 API version fallback)
-- Error behavior:
-  - `422` if required keys are missing
-  - `500` if env file is missing or `APP_ENV` is invalid
-  - 오류 응답 `detail`에는 `error_code`, `message_ko`, `message_en`가 포함됩니다.
+---
 
-## Analyze Inspect APIs
+## 📊 분석 항목 상세 정의 (Analysis Items)
 
-- 기존 유지:
-  - `POST /api/v1/analyze` (`AnalyzeRequest -> AnalyzeResponse`)
-- 신규 inspect REST:
-  - `POST /api/v1/analyze/inspect`
-  - 반환: `request_id`, `result`, `logic_steps`, `logs`
-- 신규 inspect SSE:
-  - `POST /api/v1/analyze/inspect/stream` (`text/event-stream`)
-  - 이벤트 순서: `start -> log* -> result -> done` (오류 시 `error`)
-- 구현 원칙:
-  - `/analyze`와 `/inspect`는 동일한 서비스 메서드 `run_analyze_pipeline`을 호출합니다.
-  - analyze 로그는 메모리 링버퍼(`maxlen=200`)에 저장됩니다.
+사용자는 분석 결과로 반환되는 각 수치를 아래와 같은 의미로 해석할 수 있습니다.
 
-## Analyze Fan-out Logic
+### 1. 주제 (Topic)
+- 회의록 전체에서 논의된 핵심 의제를 추출합니다. 여러 주제가 있을 경우 쉼표(`,`)로 구분됩니다.
 
-- Analyze는 LLM 기반 3-branch fan-out 파이프라인으로 동작합니다.
-  - Branch Topic: `extract_topics_with_llm` (`reasoning_effort=none`, `max_completion_tokens=120`)
-  - Branch Sentiment: `analyze_sentiment_with_llm` (`reasoning_effort=minimal`, `max_completion_tokens=80`)
-  - Branch Emotion: `analyze_emotion_with_llm` (`reasoning_effort=minimal`, `max_completion_tokens=180`)
-- 세 분기는 병렬 실행 후 fan-in되어 `AnalyzeResponse`를 조합합니다.
-- 최종 응답 구조:
-  - `topic`:
-    - `primary`
-    - `candidates[]` (`label`, `confidence`)
-  - `sentiment`:
-    - `distribution` (`positive`, `negative`, `neutral`)
-    - `polarity`
-    - `confidence`
-  - `emotion`:
-    - `distribution` (`anger`, `joy`, `sadness`, `neutral`, `anxiety`, `frustration`, `excitement`, `confusion`)
-    - `primary`
-    - `confidence`
-  - `correlation`:
-    - `topic_sentiment`
-    - `topic_emotion`
-    - `sentiment_emotion`
-    - `summary`
-- 각 분포 값은 정수 퍼센트(`0~100`)이며 합계 `100`으로 정규화됩니다.
-- 어느 분기에서든 LLM 호출/파싱/스키마 검증 실패 시 `/api/v1/analyze`와 `/api/v1/analyze/inspect`는 `502`(`ANALYZE_LLM_FAILURE`)를 반환합니다.
+### 2. 감정 분포 (Sentiment)
+회의의 전반적인 분위기를 3가지 축으로 수치화합니다. (합계 100)
+- **Positive**: 긍정적, 낙관적, 또는 생산적인 분위기
+- **Negative**: 부정적, 비판적, 또는 냉소적인 분위기
+- **Neutral**: 감정이 배제된 중립적, 사실 전달 위주의 분위기
 
-## Streamlit 테스트 UI
+### 3. 통합 정서 분석 (Emotion)
+회의 도메인에 특화된 상세 정서와 신호를 분석합니다.
 
-- 실행 전제:
-  - FastAPI 서버 실행: `FASTAPI_SERVER_PORT=8000 ./scripts/run_api.sh`
-- Streamlit 실행:
-  - `./scripts/run_ui.sh`
-  - 또는 `ANALYZE_API_BASE_URL=http://localhost:8000 uv run streamlit run app/ui/analyze_console.py`
-- UI 동작:
-  - 기본 모드: SSE(`/api/v1/analyze/inspect/stream`) 사용
-  - SSE 모드에서 `log` 이벤트 수신 즉시 실행 로그/결과 미리보기를 화면에 실시간 갱신
-  - 실패 시 fallback: inspect REST(`/api/v1/analyze/inspect`)
-  - `화면 Clear`: 현재 표시 중인 결과/에러를 초기화
-  - `히스토리 삭제`: 저장된 요청 히스토리를 전체 삭제
-  - 요청 성공 시 최신 30건 히스토리 자동 저장 및 재조회(`표시할 결과 선택`)
+#### **8개 기본 정서 (Base Emotions)**
+화자의 발화에 내포된 보편적인 심리 상태를 측정합니다.
+- **Anger (분노)**: 강한 불만, 거부감, 또는 공격적인 태도가 포착되는 상태
+- **Joy (기쁨)**: 만족감, 성취감, 또는 긍정적인 유대감이 나타나는 상태
+- **Sadness (슬픔)**: 실망, 상실감, 또는 침체된 분위기가 느껴지는 상태
+- **Neutral (중립)**: 감정적 동요 없이 객관적 사실이나 정보를 전달하는 상태
+- **Anxiety (불안)**: 우려, 걱정, 또는 결과에 대한 초조함이 포착되는 상태
+- **Frustration (좌절)**: 진행의 장애로 인한 답답함이나 무력감이 나타나는 상태
+- **Excitement (흥분)**: 높은 기대감, 열정, 또는 고양된 에너지가 감지되는 상태
+- **Confusion (혼란)**: 정보의 부족이나 모순으로 인해 이해가 어려운 당혹스러운 상태
 
-## 운영 시 유의사항
+#### **5개 회의 시그널 (Meeting Signals)**
+회의의 역동성과 생산성을 측정하는 핵심 지표입니다.
+- **Tension (긴장도)**: 의견 대립, 갈등, 또는 심리적 압박의 정도
+- **Alignment (합의도)**: 의견 일치, 방향성 공유, 또는 상호 동의의 수준
+- **Urgency (긴급도)**: 사안의 시급성, 마감 압박, 또는 빠른 실행 요구 정도
+- **Clarity (명확도)**: 논의 주제나 결론의 구체성 및 참석자들의 이해 수준
+- **Engagement (참여도)**: 대화의 활발함, 적극적인 피드백, 또는 협력적 태도
 
-- Azure OpenAI 리소스 네트워크 정책(VNet/Firewall)이 닫혀 있으면 감정분류 호출이 실패합니다.
-- 자해/자살 관련 문구 등은 Azure Content Filter 정책에 의해 차단될 수 있습니다.
-- Azure API 버전은 `LLM_API_VERSION`을 우선 사용하고, 미설정 시에만 `LLM_MODEL_VERSION`으로 fallback합니다.
+#### **추가 발굴 정서 (Emerging Emotions)**
+기본 8정서 외에 회의 맥락에서 중요하게 포착될 수 있는 **12가지 추가 정서 후보군(Set)** 중 가장 두드러지는 항목을 최대 3개까지 선별하여 추출합니다.
 
-Use `example.env` as the template. Keep `dev.env` and `prod.env` local only.
+- **부정적/방어적 시그널**:
+  - `resentment`(억울함/원망): 부당한 처우나 상황에 대한 불만
+  - `skepticism`(회의감): 실효성이나 가능성에 대한 냉소적인 태도
+  - `discouragement`(낙담): 의욕 상실이나 무력감을 느끼는 상태
+  - `resignation`(체념): 상황 개선을 포기하고 받아들이는 상태
+  - `defensiveness`(방어적 태도): 비판에 대해 책임을 회피하거나 자기를 보호하려는 태도
+  - `distrust`(불신): 타인의 의도나 정보의 신뢰성에 대한 의심
+- **불안/긴박 시그널**:
+  - `concern`(우려): 잠재적 리스크나 문제에 대한 걱정
+  - `fatigue`(피로): 장기화된 논의나 업무 과중으로 인한 지친 상태
+  - `doubt`(의구심): 확신이 부족하고 주저하는 상태
+  - `impatience`(조급함): 빠른 결론이나 성과를 독촉하는 심리 상태
+- **긍정적/해소 시그널**:
+  - `relief`(안도): 리스크 해소나 합의 도달 후 느끼는 안심
+  - `optimism`(낙관): 향후 진행 방향에 대한 긍정적인 기대감
 
-## LLM-as-Judge Offline Evaluation
+---
 
-- Script: `scripts/evaluate_sentiment_with_judge.py`
-- Input: JSONL with `utterance_text`, `predicted_label` and optional IDs
-- Output: JSON report with agreement rate and per-turn judge rationale
+### Streamlit 분석 콘솔
+API를 직접 호출하지 않고 웹 화면에서 텍스트를 분석하고 결과를 시각화할 수 있습니다.
 
-## Feature List <-> GitHub Issue Sync
+- **실행**: `./scripts/run_ui.sh` (기본 포트: 8501)
+- **주요 기능**:
+  - 분석 로그 실시간 스트리밍 (SSE)
+  - 분석 히스토리 저장 및 재조회
+  - 감정 분포 차트 시각화
 
-- Script: `scripts/sync_feature_issues.py`
-- Purpose: `feature_list.json`의 기능 항목과 GitHub Issue를 `feature_id` 기준으로 동기화합니다.
-- Issue 식별 방식:
-  - 본문 마커: `<!-- feature_id:feat_xxx -->`
-  - 제목 패턴 fallback: `[feat_xxx] ...`
-- 선택 확장 필드(`feature_list.json`):
-  - `issue_rule.objective`: 이슈의 작업 목표(문단)
-  - `issue_rule.in_scope` / `issue_rule.out_of_scope`: 범위/비범위 항목
-  - `issue_rule.implementation_checklist`: 구현 체크리스트
-  - `issue_rule.verification`: 검증 시나리오
-  - `issue_rule.done_criteria`(또는 `acceptance_criteria`): 완료 조건
-- `issue_rule`가 존재하면 신규 Issue 본문 생성 시 위 섹션이 자동 삽입됩니다.
+---
 
-대표 실행 예시:
+## 🛠️ For Developers (Internal)
 
-```bash
-# 1) 현재 상태 리포트(dry-run)
-uv run python scripts/sync_feature_issues.py --create-missing --sync-state
+### 1. 분석 아키텍처 (Analyze Fan-out)
+`/analyze` 엔드포인트는 성능 최적화를 위해 3개의 독립적인 LLM 브랜치를 병렬로 실행합니다.
+- **Topic Branch**: 의제 추출 (`reasoning_effort=none`)
+- **Sentiment Branch**: 감정 분포 추출 (`reasoning_effort=none`)
+- **Emotion Branch**: **1-stage 통합 추론** (8정서 + 5시그널, `reasoning_effort=none`)
+- **최적화**: 모든 분석은 `evidence`(근거 문장) 생성을 제외하고 수치 데이터만 즉시 추출하도록 튜닝되어 있습니다.
 
-# 2) 실제 적용(이슈 생성/상태 동기화 + feature_list 메타데이터 기록)
-export GITHUB_TOKEN=***REDACTED***
-uv run python scripts/sync_feature_issues.py \
-  --create-missing \
-  --sync-state \
-  --write-feature-file \
-  --apply
-```
+### 2. 환경 설정 (ENV)
+`example.env`를 복사하여 `dev.env` 또는 `prod.env`를 생성해 사용합니다.
+- `LLM_API_KEY`: Azure OpenAI API 키
+- `LLM_ENDPOINT`: Azure OpenAI 엔드포인트 URL
+- `LLM_DEPLOYMENT_NAME`: 모델 배포 이름
 
-주의:
-- `--apply`로 GitHub 상태를 변경하려면 `GITHUB_TOKEN`이 필요합니다.
-- public repo 조회만 할 때는 토큰 없이 dry-run이 가능합니다.
+### 3. 개발 도구
+- **Worktree Setup**: `./scripts/setup_worktree.sh`
+- **Issue Sync**: `uv run python scripts/sync_feature_issues.py`
+- **Offline Evaluation**: `scripts/evaluate_sentiment_with_judge.py`
+
+---
+
+## ⚠️ 운영 시 유의사항
+- **네트워크**: Azure OpenAI 리소스의 방화벽 정책이 허용되어 있어야 합니다.
+- **필터링**: 자해/자살/혐오 표현 등은 Azure Content Filter에 의해 차단되어 `502` 에러를 반환할 수 있습니다.
+- **한국어 우선**: 모든 시스템 프롬프트 및 데이터 처리는 한국어 및 한/영 혼합 발화에 최적화되어 있습니다.
