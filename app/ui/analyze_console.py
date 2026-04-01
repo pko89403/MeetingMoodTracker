@@ -148,8 +148,7 @@ def _call_inspect_sse_with_live_render(
             if isinstance(maybe_logic_steps, list):
                 response_payload["logic_steps"] = maybe_logic_steps
             status_placeholder.info(
-                "SSE 실행 중... "
-                f"request_id={response_payload.get('request_id', '-')}"
+                f"SSE 실행 중... request_id={response_payload.get('request_id', '-')}"
             )
             continue
 
@@ -218,31 +217,15 @@ def _render_sentiment_summary(result: dict[str, Any]) -> None:
         return
 
     rows: list[dict[str, Any]] = []
-    distribution = sentiment.get("distribution")
-    if isinstance(distribution, dict):
-        for label in ("positive", "negative", "neutral"):
-            rows.append(
-                {
-                    "label": label,
-                    "confidence": distribution.get(label, "-"),
-                }
-            )
-    else:
-        # 하위호환: 구 스키마(sentiment.positive/negative/neutral.confidence)
-        for label in ("positive", "negative", "neutral"):
-            confidence = "-"
-            axis = sentiment.get(label)
-            if isinstance(axis, dict):
-                confidence = axis.get("confidence", "-")
-            rows.append({"label": label, "confidence": confidence})
+    for label in ("positive", "negative", "neutral"):
+        confidence = "-"
+        axis = sentiment.get(label)
+        if isinstance(axis, dict):
+            confidence = axis.get("confidence", "-")
+        rows.append({"label": label, "confidence": confidence})
 
     st.caption("Sentiment 분포")
     st.table(rows)
-
-    if isinstance(distribution, dict):
-        polarity = sentiment.get("polarity", "-")
-        confidence = sentiment.get("confidence", "-")
-        st.caption(f"Polarity: {polarity} ({confidence})")
 
 
 def _init_session_state() -> None:
@@ -297,10 +280,7 @@ def _format_history_option(history_index: int) -> str:
     mode = entry.get("mode", "-")
     meeting_id = entry.get("meeting_id", "-")
     request_id = entry.get("request_id", "-")
-    return (
-        f"{created_at} | {mode} | meeting_id={meeting_id} | "
-        f"request_id={request_id}"
-    )
+    return f"{created_at} | {mode} | meeting_id={meeting_id} | request_id={request_id}"
 
 
 def _resolve_selected_response() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -389,8 +369,7 @@ def main() -> None:
                     mode_label = "SSE"
                 except Exception as sse_exc:
                     st.warning(
-                        "SSE 호출에 실패해 inspect REST로 전환합니다: "
-                        f"{sse_exc}",
+                        f"SSE 호출에 실패해 inspect REST로 전환합니다: {sse_exc}",
                     )
                     response_payload = _call_inspect_rest(
                         base_url=base_url,

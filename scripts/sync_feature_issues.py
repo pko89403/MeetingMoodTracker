@@ -145,7 +145,9 @@ def _normalize_issue_rule_items(value: Any) -> list[str]:
     return normalized
 
 
-def _append_issue_rule_section(*, lines: list[str], title: str, items: list[str]) -> None:
+def _append_issue_rule_section(
+    *, lines: list[str], title: str, items: list[str]
+) -> None:
     """issue_rule 섹션을 본문에 조건부로 추가한다."""
     if not items:
         return
@@ -182,7 +184,9 @@ def build_issue_body(feature: dict[str, Any]) -> str:
         _append_issue_rule_section(
             lines=lines,
             title="구현 체크리스트",
-            items=_normalize_issue_rule_items(issue_rule.get("implementation_checklist")),
+            items=_normalize_issue_rule_items(
+                issue_rule.get("implementation_checklist")
+            ),
         )
         _append_issue_rule_section(
             lines=lines,
@@ -321,7 +325,9 @@ def create_issue(
     )
 
 
-def update_issue_state(*, repo: str, token: str, number: int, state: str) -> IssueRecord:
+def update_issue_state(
+    *, repo: str, token: str, number: int, state: str
+) -> IssueRecord:
     """Issue 상태(open/closed)를 업데이트한다."""
     updated = github_request(
         method="PATCH",
@@ -424,7 +430,9 @@ def main() -> int:
         issue = issue_map.get(feature_id)
 
         if issue is None and args.create_missing:
-            issue_title = f"[{feature_id}] {feature_name}" if feature_name else f"[{feature_id}]"
+            issue_title = (
+                f"[{feature_id}] {feature_name}" if feature_name else f"[{feature_id}]"
+            )
             issue_body = build_issue_body(feature)
             if dry_run:
                 lines.append(
@@ -467,9 +475,7 @@ def main() -> int:
                     state=expected_state,
                 )
                 counters.state_changed += 1
-                lines.append(
-                    f"- state: {feature_id} #{issue.number} -> {issue.state}"
-                )
+                lines.append(f"- state: {feature_id} #{issue.number} -> {issue.state}")
 
         if args.write_feature_file and write_issue_metadata(feature, issue):
             counters.metadata_changed += 1

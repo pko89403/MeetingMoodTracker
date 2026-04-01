@@ -92,7 +92,9 @@ def _parse_sse_response_body(body: str) -> list[tuple[str, dict]]:
     return events
 
 
-def test_analyze_and_inspect_return_identical_result_for_same_input(monkeypatch) -> None:
+def test_analyze_and_inspect_return_identical_result_for_same_input(
+    monkeypatch,
+) -> None:
     def _fake_run_analyze_pipeline(request) -> AnalyzeInspectResponse:
         assert request.meeting_id == "m_12345"
         return AnalyzeInspectResponse(
@@ -159,7 +161,9 @@ def test_analyze_and_inspect_return_identical_result_for_same_input(monkeypatch)
             ],
         )
 
-    monkeypatch.setattr(analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline)
+    monkeypatch.setattr(
+        analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline
+    )
 
     analyze_response = client.post("/api/v1/analyze", json=_payload())
     inspect_response = client.post("/api/v1/analyze/inspect", json=_payload())
@@ -199,7 +203,9 @@ def test_analyze_and_inspect_share_single_service_method(monkeypatch) -> None:
             ],
         )
 
-    monkeypatch.setattr(analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline)
+    monkeypatch.setattr(
+        analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline
+    )
 
     analyze_response = client.post("/api/v1/analyze", json=_payload())
     inspect_response = client.post("/api/v1/analyze/inspect", json=_payload())
@@ -266,7 +272,9 @@ def test_analyze_inspect_stream_emits_expected_event_order(monkeypatch) -> None:
             logs=logs,
         )
 
-    monkeypatch.setattr(analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline)
+    monkeypatch.setattr(
+        analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline
+    )
 
     response = client.post("/api/v1/analyze/inspect/stream", json=_payload())
 

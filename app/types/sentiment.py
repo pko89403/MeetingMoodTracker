@@ -2,13 +2,24 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 SentimentLabel = Literal["POS", "NEG", "NEUTRAL"]
 
 
 class TurnSentimentRequest(BaseModel):
     """발화 턴 단위 감정분류 요청 스키마."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "meeting_id": "m_20260401_003",
+                "turn_id": "t_021",
+                "speaker_id": "bob",
+                "utterance_text": "이 접근은 좋아요. But we need tighter QA before release.",
+            }
+        }
+    )
 
     meeting_id: str = Field(min_length=1)
     turn_id: str = Field(min_length=1)

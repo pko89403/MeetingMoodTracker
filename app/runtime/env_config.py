@@ -12,7 +12,7 @@ from app.types.llm_config import LlmConfigResponse
 router = APIRouter()
 
 
-@router.get("/api/env/v1", response_model=LlmConfigResponse)
+@router.get("/api/v1/env", response_model=LlmConfigResponse)
 def get_llm_environment_config() -> LlmConfigResponse:
     """현재 `APP_ENV` 기준 LLM 설정을 조회한다."""
     try:

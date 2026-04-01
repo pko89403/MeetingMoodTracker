@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class LlmConfigResponse(BaseModel):
-    """`GET /api/env/v1`가 반환하는 LLM 환경설정 응답 스키마."""
+    """`GET /api/v1/env`가 반환하는 LLM 환경설정 응답 스키마."""
 
     LLM_API_KEY: str
     LLM_ENDPOINT: str

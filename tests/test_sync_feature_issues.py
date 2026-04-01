@@ -33,7 +33,9 @@ def test_list_all_issues_filters_pull_request(monkeypatch) -> None:
             "title": "PR title",
             "html_url": "https://github.com/example/repo/pull/11",
             "body": "",
-            "pull_request": {"url": "https://api.github.com/repos/example/repo/pulls/11"},
+            "pull_request": {
+                "url": "https://api.github.com/repos/example/repo/pulls/11"
+            },
         },
     ]
 

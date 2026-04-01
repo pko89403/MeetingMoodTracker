@@ -74,7 +74,9 @@ def _build_system_prompt() -> str:
         "POS means positive/constructive/supportive tone. "
         "NEG means negative/hostile/frustrated/conflictual tone. "
         "NEUTRAL means factual, mixed, or emotionally flat tone. "
-        "Evidence must quote a short phrase from the utterance."
+        "Evidence must quote a short phrase from the utterance. "
+        "Evidence must be written in Korean only. "
+        "Do not output English words or mixed-language evidence."
     )
 
 

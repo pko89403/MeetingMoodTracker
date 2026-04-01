@@ -93,7 +93,9 @@ def test_analyze_meeting_returns_pipeline_result(monkeypatch) -> None:
             ],
         )
 
-    monkeypatch.setattr(analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline)
+    monkeypatch.setattr(
+        analyze_runtime, "run_analyze_pipeline", _fake_run_analyze_pipeline
+    )
 
     response = client.post("/api/v1/analyze", json=_payload())
 
