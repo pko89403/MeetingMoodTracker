@@ -1,6 +1,6 @@
 # Meeting Mood Tracker
 
-A FastAPI-based application that analyzes meeting transcripts to identify discussion topics and sentiment distribution. Built strictly with Specification-Driven Development (SDD) principles.
+A FastAPI-based application that analyzes meeting transcripts to identify topic/sentiment/emotion facets and correlation signals. Built strictly with Specification-Driven Development (SDD) principles.
 
 ## 한국어 우선 개발 가이드
 
@@ -116,19 +116,32 @@ docker compose up --build
   - `/analyze`와 `/inspect`는 동일한 서비스 메서드 `run_analyze_pipeline`을 호출합니다.
   - analyze 로그는 메모리 링버퍼(`maxlen=200`)에 저장됩니다.
 
-## Topic Extraction Logic
+## Analyze Fan-out Logic
 
-- Analyze는 LLM 기반 2-stage 파이프라인으로 동작합니다.
-  - Stage 1: `extract_topics_with_llm` (JSON structured `topics: string[]`, `reasoning_effort=none`)
-  - Stage 2: `analyze_sentiment_with_llm` (JSON structured `sentiment.positive/negative/neutral`, `reasoning_effort=minimal`)
-- Stage 2는 Stage 1의 topic 리스트와 원문 텍스트를 함께 입력으로 사용합니다.
-- 최종 `topic` 응답값은 topic 리스트를 `", "`로 결합한 문자열입니다.
-- 최종 `sentiment`는 아래 구조를 사용합니다.
-  - `sentiment.positive.confidence`
-  - `sentiment.negative.confidence`
-  - `sentiment.neutral.confidence`
-- 각 confidence는 정수 퍼센트(`0~100`)이며, 세 값의 합은 서버에서 항상 `100`으로 정규화됩니다.
-- 두 단계 중 하나라도 LLM 호출/파싱/스키마 검증에 실패하면 `/api/v1/analyze`와 `/api/v1/analyze/inspect`는 `502`를 반환합니다.
+- Analyze는 LLM 기반 3-branch fan-out 파이프라인으로 동작합니다.
+  - Branch Topic: `extract_topics_with_llm` (`reasoning_effort=none`, `max_completion_tokens=120`)
+  - Branch Sentiment: `analyze_sentiment_with_llm` (`reasoning_effort=minimal`, `max_completion_tokens=80`)
+  - Branch Emotion: `analyze_emotion_with_llm` (`reasoning_effort=minimal`, `max_completion_tokens=180`)
+- 세 분기는 병렬 실행 후 fan-in되어 `AnalyzeResponse`를 조합합니다.
+- 최종 응답 구조:
+  - `topic`:
+    - `primary`
+    - `candidates[]` (`label`, `confidence`)
+  - `sentiment`:
+    - `distribution` (`positive`, `negative`, `neutral`)
+    - `polarity`
+    - `confidence`
+  - `emotion`:
+    - `distribution` (`anger`, `joy`, `sadness`, `neutral`, `anxiety`, `frustration`, `excitement`, `confusion`)
+    - `primary`
+    - `confidence`
+  - `correlation`:
+    - `topic_sentiment`
+    - `topic_emotion`
+    - `sentiment_emotion`
+    - `summary`
+- 각 분포 값은 정수 퍼센트(`0~100`)이며 합계 `100`으로 정규화됩니다.
+- 어느 분기에서든 LLM 호출/파싱/스키마 검증 실패 시 `/api/v1/analyze`와 `/api/v1/analyze/inspect`는 `502`(`ANALYZE_LLM_FAILURE`)를 반환합니다.
 
 ## Streamlit 테스트 UI
 

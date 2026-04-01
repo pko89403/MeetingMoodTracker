@@ -4,6 +4,7 @@ import json
 import math
 import re
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from threading import Lock
 from typing import Any, Callable
@@ -17,22 +18,37 @@ from app.types.analyze_inspect import (
     AnalyzeLogEntry,
     AnalyzeLogicStep,
 )
-from app.types.analyze_llm import SentimentExtractionResult, TopicExtractionResult
+from app.types.analyze_llm import (
+    EmotionExtractionResult,
+    SentimentExtractionResult,
+    TopicExtractionResult,
+)
+from app.types.emotion import BASE_EMOTION_LABELS
 from app.types.llm_config import LlmConfigResponse
 from app.types.mood import (
+    AnalyzeCorrelation,
+    AnalyzeEmotion,
+    AnalyzeEmotionDistribution,
     AnalyzeRequest,
     AnalyzeResponse,
     AnalyzeSentiment,
-    SentimentConfidence,
+    AnalyzeSentimentDistribution,
+    AnalyzeTopic,
+    AnalyzeTopicCandidate,
 )
 
 DEFAULT_AZURE_OPENAI_API_VERSION = "2025-04-01-preview"
 TOPIC_REASONING_EFFORT = "none"
 SENTIMENT_REASONING_EFFORT = "minimal"
+EMOTION_REASONING_EFFORT = "minimal"
 MAX_ANALYZE_LOG_BUFFER_SIZE = 200
 
+TOPIC_MAX_OUTPUT_TOKENS = 120
+SENTIMENT_MAX_OUTPUT_TOKENS = 80
+EMOTION_MAX_OUTPUT_TOKENS = 180
+
 TOPIC_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
-    "name": "meeting_topic_extraction",
+    "name": "meeting_topic_facets",
     "strict": True,
     "schema": {
         "type": "object",
@@ -40,11 +56,17 @@ TOPIC_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
         "properties": {
             "topics": {
                 "type": "array",
-                "items": {
-                    "type": "string",
-                    "minLength": 1,
-                },
                 "minItems": 1,
+                "maxItems": 3,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "label": {"type": "string", "minLength": 1, "maxLength": 60},
+                        "confidence": {"type": "number", "minimum": 0, "maximum": 100},
+                    },
+                    "required": ["label", "confidence"],
+                },
             }
         },
         "required": ["topics"],
@@ -52,7 +74,7 @@ TOPIC_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
 }
 
 SENTIMENT_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
-    "name": "meeting_sentiment_distribution",
+    "name": "meeting_sentiment_distribution_compact",
     "strict": True,
     "schema": {
         "type": "object",
@@ -88,12 +110,98 @@ SENTIMENT_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
     },
 }
 
+EMOTION_EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
+    "name": "meeting_emotion_distribution_compact",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "emotions": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "anger": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "joy": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "sadness": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "neutral": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "anxiety": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "frustration": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "excitement": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                    "confusion": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"confidence": {"type": "number"}},
+                        "required": ["confidence"],
+                    },
+                },
+                "required": [
+                    "anger",
+                    "joy",
+                    "sadness",
+                    "neutral",
+                    "anxiety",
+                    "frustration",
+                    "excitement",
+                    "confusion",
+                ],
+            }
+        },
+        "required": ["emotions"],
+    },
+}
+
 _TOPIC_STOPWORD_PATTERN = re.compile(
     r"(?i)\b(?:um+|uh+|like|you know|i mean|sort of|kind of)\b|"
     r"(?:음+|어+|그냥|약간|뭐랄까|저기|일단)"
 )
 _TOPIC_ALLOWED_CHARS_PATTERN = re.compile(r"[^0-9A-Za-z가-힣\s.,!?/&()_-]")
 _MULTI_SPACE_PATTERN = re.compile(r"\s+")
+
+_SENTIMENT_AXIS_ORDER: tuple[str, ...] = ("positive", "negative", "neutral")
+_POSITIVE_EMOTIONS: tuple[str, ...] = ("joy", "excitement")
+_NEGATIVE_EMOTIONS: tuple[str, ...] = (
+    "anger",
+    "sadness",
+    "anxiety",
+    "frustration",
+    "confusion",
+)
 
 _analyze_log_buffer: deque[AnalyzeLogEntry] = deque(maxlen=MAX_ANALYZE_LOG_BUFFER_SIZE)
 _analyze_log_lock = Lock()
@@ -106,21 +214,23 @@ _ANALYZE_LOGIC_STEPS: tuple[AnalyzeLogicStep, ...] = (
     ),
     AnalyzeLogicStep(
         step_id="extract_topic",
-        title_ko="의제 추론",
-        description_ko="전처리된 텍스트를 기반으로 LLM이 topics 리스트를 구조화 추출합니다.",
+        title_ko="Topic 세분화",
+        description_ko="topic 후보와 confidence를 추출합니다.",
     ),
     AnalyzeLogicStep(
         step_id="analyze_sentiment",
-        title_ko="감정 분포 추론",
-        description_ko=(
-            "원문 텍스트와 topic 리스트를 함께 입력해 "
-            "positive/negative/neutral confidence를 추론합니다."
-        ),
+        title_ko="Sentiment 세분화",
+        description_ko="positive/negative/neutral 분포를 추출합니다.",
+    ),
+    AnalyzeLogicStep(
+        step_id="analyze_emotion",
+        title_ko="Emotion 세분화",
+        description_ko="기본 8정서 분포를 추출합니다.",
     ),
     AnalyzeLogicStep(
         step_id="compose_response",
-        title_ko="응답 조합",
-        description_ko="topics를 단일 topic 문자열로 결합해 API 응답 스키마를 조합합니다.",
+        title_ko="Correlation 재조합",
+        description_ko="topic/sentiment/emotion 상관도를 계산해 최종 응답을 조합합니다.",
     ),
 )
 
@@ -129,7 +239,7 @@ class AnalyzeInferenceError(Exception):
     """Analyze 파이프라인의 LLM 추론 단계에서 오류가 발생했을 때 사용한다."""
 
     def __init__(self, stage: str, message: str) -> None:
-        """오류 단계(`topic`/`sentiment`/`config`)와 상세 메시지를 보관한다."""
+        """오류 단계와 상세 메시지를 보관한다."""
         self.stage = stage
         super().__init__(message)
 
@@ -226,39 +336,48 @@ def preprocess_for_topic(text: str) -> str:
 
 
 def _build_topic_system_prompt() -> str:
-    """토픽 추출용 시스템 프롬프트를 구성한다."""
+    """Topic 세분화 추출용 시스템 프롬프트를 구성한다."""
     return (
-        "You extract concise meeting topics from transcript text. "
-        "Input can be Korean and English mixed. "
-        "Return 1-5 concrete topics ordered by relevance. "
-        "Each topic should be short noun phrase."
+        "Extract 1 to 3 concise meeting topics from the input text. "
+        "Input can be Korean with mixed English. "
+        "Return only JSON with topics[]. "
+        "Each topic item must include label and confidence(0-100). "
+        "Keep labels short noun phrases."
     )
 
 
 def _build_topic_user_prompt(preprocessed_text: str) -> str:
-    """토픽 추출용 사용자 프롬프트를 구성한다."""
+    """Topic 추출용 사용자 프롬프트를 구성한다."""
     return "preprocessed_meeting_text:\n" + preprocessed_text
 
 
 def _build_sentiment_system_prompt() -> str:
-    """감정 분포 추출용 시스템 프롬프트를 구성한다."""
+    """Sentiment 세분화 추출용 시스템 프롬프트를 구성한다."""
     return (
-        "You analyze meeting sentiment distribution. "
-        "Use both meeting topics and original meeting text. "
-        "Return positive, negative, and neutral confidence values. "
-        "Confidence values can be raw scores and will be normalized by server."
+        "Analyze meeting sentiment distribution. "
+        "Return only JSON with positive, negative, neutral confidence. "
+        "Do not add explanations."
     )
 
 
-def _build_sentiment_user_prompt(original_text: str, topics: list[str]) -> str:
-    """감정 분포 추출용 사용자 프롬프트를 구성한다."""
-    topic_lines = "\n".join(f"- {topic}" for topic in topics)
+def _build_sentiment_user_prompt(original_text: str) -> str:
+    """Sentiment 추출용 사용자 프롬프트를 구성한다."""
+    return "meeting_text:\n" + original_text
+
+
+def _build_emotion_system_prompt() -> str:
+    """Emotion 세분화 추출용 시스템 프롬프트를 구성한다."""
     return (
-        "extracted_topics:\n"
-        f"{topic_lines}\n\n"
-        "meeting_text:\n"
-        f"{original_text}"
+        "Analyze emotion distribution for one meeting text. "
+        "Return only JSON with eight emotion confidences: "
+        "anger, joy, sadness, neutral, anxiety, frustration, excitement, confusion. "
+        "Use confidence 0-100."
     )
+
+
+def _build_emotion_user_prompt(original_text: str) -> str:
+    """Emotion 추출용 사용자 프롬프트를 구성한다."""
+    return "meeting_text:\n" + original_text
 
 
 def _extract_message_content(completion: Any, stage: str) -> str:
@@ -291,77 +410,145 @@ def _parse_json_payload(content: str, stage: str) -> dict[str, Any]:
     return payload
 
 
-def _normalize_topics(raw_topics: list[str]) -> list[str]:
-    """토픽 리스트를 정리하고 비어 있으면 오류를 발생시킨다."""
-    cleaned_topics: list[str] = []
-    seen: set[str] = set()
-
-    for raw_topic in raw_topics:
-        normalized = raw_topic.strip()
-        if normalized == "":
-            continue
-        dedupe_key = normalized.casefold()
-        if dedupe_key in seen:
-            continue
-        seen.add(dedupe_key)
-        cleaned_topics.append(normalized)
-
-    if not cleaned_topics:
-        raise AnalyzeInferenceError(stage="topic", message="No valid topics extracted.")
-    return cleaned_topics
+def _to_score_int(raw_score: float) -> int:
+    """부동소수 원시 점수를 0~100 정수로 정규화한다."""
+    if math.isnan(raw_score) or math.isinf(raw_score):
+        return 0
+    return int(round(min(100.0, max(0.0, raw_score))))
 
 
-def _normalize_sentiment_confidences(
-    positive_raw: float,
-    negative_raw: float,
-    neutral_raw: float,
-) -> AnalyzeSentiment:
-    """감정 confidence 원시값을 0~100 정수 퍼센트(합계 100)로 정규화한다."""
-    axis_values = [
-        max(0.0, positive_raw),
-        max(0.0, negative_raw),
-        max(0.0, neutral_raw),
-    ]
-    total = sum(axis_values)
+def _normalize_distribution(
+    raw_scores: list[float],
+    labels: tuple[str, ...],
+    stage: str,
+) -> dict[str, int]:
+    """원시 점수를 합계 100 정수 분포로 정규화한다."""
+    if len(raw_scores) != len(labels):
+        raise AnalyzeInferenceError(stage=stage, message="Distribution length mismatch.")
+
+    clamped = [max(0.0, score) for score in raw_scores]
+    total = sum(clamped)
     if total <= 0:
-        axis_values = [1.0, 1.0, 1.0]
-        total = 3.0
+        clamped = [1.0] * len(labels)
+        total = float(len(labels))
 
-    scaled = [(value / total) * 100.0 for value in axis_values]
+    scaled = [(value / total) * 100.0 for value in clamped]
     floors = [math.floor(value) for value in scaled]
-    fractions = [scaled[idx] - floors[idx] for idx in range(3)]
+    fractions = [scaled[idx] - floors[idx] for idx in range(len(labels))]
     remainder = 100 - sum(floors)
-
-    # Largest Remainder + tie-break(positive -> negative -> neutral)
-    order = sorted(range(3), key=lambda idx: (-fractions[idx], idx))
+    order = sorted(range(len(labels)), key=lambda idx: (-fractions[idx], idx))
     for idx in order[:remainder]:
         floors[idx] += 1
 
-    positive_value, negative_value, neutral_value = floors
-    sentiment = AnalyzeSentiment(
-        positive=SentimentConfidence(confidence=positive_value),
-        negative=SentimentConfidence(confidence=negative_value),
-        neutral=SentimentConfidence(confidence=neutral_value),
-    )
-    normalized_total = (
-        sentiment.positive.confidence
-        + sentiment.negative.confidence
-        + sentiment.neutral.confidence
-    )
-    if normalized_total != 100:
-        raise AnalyzeInferenceError(
-            stage="sentiment",
-            message="Normalized sentiment confidence total must be 100.",
+    return {label: floors[idx] for idx, label in enumerate(labels)}
+
+
+def _normalize_topic_candidates(
+    raw_topics: list[Any],
+) -> list[AnalyzeTopicCandidate]:
+    """Topic 후보 목록을 정규화한다."""
+    candidates: list[AnalyzeTopicCandidate] = []
+    seen: set[str] = set()
+
+    for raw_item in raw_topics:
+        label = raw_item.label.strip()
+        if label == "":
+            continue
+        key = label.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(
+            AnalyzeTopicCandidate(
+                label=label,
+                confidence=_to_score_int(raw_item.confidence),
+            )
         )
-    return sentiment
+        if len(candidates) >= 3:
+            break
+
+    if not candidates:
+        raise AnalyzeInferenceError(stage="topic", message="No valid topics extracted.")
+    return candidates
+
+
+def _pick_max_axis(
+    values: dict[str, int],
+    axis_order: tuple[str, ...],
+) -> tuple[str, int]:
+    """축 순서를 tie-break로 사용해 최댓값 축을 선택한다."""
+    best_axis = axis_order[0]
+    best_score = -1
+    for axis in axis_order:
+        score = values[axis]
+        if score > best_score:
+            best_axis = axis
+            best_score = score
+    return best_axis, best_score
+
+
+def _build_correlation_summary(
+    topic: AnalyzeTopic,
+    sentiment: AnalyzeSentiment,
+    emotion: AnalyzeEmotion,
+    sentiment_emotion: int,
+) -> str:
+    """상관도 요약 문장을 생성한다."""
+    if sentiment_emotion >= 70:
+        level = "높은"
+    elif sentiment_emotion >= 40:
+        level = "중간"
+    else:
+        level = "낮은"
+
+    return (
+        f"주요 토픽 '{topic.primary}'에서 "
+        f"{sentiment.polarity} 감성과 '{emotion.primary}' 감정의 상관도가 "
+        f"{level} 수준으로 관찰되었습니다."
+    )
+
+
+def _compute_correlation(
+    topic: AnalyzeTopic,
+    sentiment: AnalyzeSentiment,
+    emotion: AnalyzeEmotion,
+) -> AnalyzeCorrelation:
+    """세분화 결과를 상관도 중심으로 재조합한다."""
+    topic_weight = topic.candidates[0].confidence
+    sentiment_weight = sentiment.confidence
+    emotion_weight = emotion.confidence
+
+    sentiment_valence = sentiment.distribution.positive - sentiment.distribution.negative
+    emotion_positive = sum(getattr(emotion.distribution, label) for label in _POSITIVE_EMOTIONS)
+    emotion_negative = sum(getattr(emotion.distribution, label) for label in _NEGATIVE_EMOTIONS)
+    emotion_valence = emotion_positive - emotion_negative
+    alignment = 100 - min(100, abs(sentiment_valence - emotion_valence))
+
+    topic_sentiment = _to_score_int((topic_weight + sentiment_weight) / 2.0)
+    topic_emotion = _to_score_int((topic_weight + emotion_weight) / 2.0)
+    sentiment_emotion = _to_score_int(
+        (sentiment_weight + emotion_weight + alignment) / 3.0
+    )
+
+    return AnalyzeCorrelation(
+        topic_sentiment=topic_sentiment,
+        topic_emotion=topic_emotion,
+        sentiment_emotion=sentiment_emotion,
+        summary=_build_correlation_summary(
+            topic=topic,
+            sentiment=sentiment,
+            emotion=emotion,
+            sentiment_emotion=sentiment_emotion,
+        ),
+    )
 
 
 def extract_topics_with_llm(
     client: AzureOpenAI,
     deployment_name: str,
     preprocessed_text: str,
-) -> list[str]:
-    """LLM JSON structured 출력으로 토픽 리스트를 추출한다."""
+) -> AnalyzeTopic:
+    """Topic 세분화 결과를 LLM으로 추출한다."""
     if preprocessed_text.strip() == "":
         raise AnalyzeInferenceError(stage="topic", message="Preprocessed text is empty.")
 
@@ -369,6 +556,7 @@ def extract_topics_with_llm(
         completion = client.chat.completions.create(
             model=deployment_name,
             reasoning_effort=TOPIC_REASONING_EFFORT,
+            max_completion_tokens=TOPIC_MAX_OUTPUT_TOKENS,
             response_format={
                 "type": "json_schema",
                 "json_schema": TOPIC_EXTRACTION_JSON_SCHEMA,
@@ -391,7 +579,6 @@ def extract_topics_with_llm(
 
     content = _extract_message_content(completion=completion, stage="topic")
     payload = _parse_json_payload(content=content, stage="topic")
-
     try:
         parsed = TopicExtractionResult.model_validate(payload)
     except Exception as exc:
@@ -400,38 +587,31 @@ def extract_topics_with_llm(
             message="Topic extraction schema validation failed.",
         ) from exc
 
-    return _normalize_topics(raw_topics=parsed.topics)
+    candidates = _normalize_topic_candidates(raw_topics=parsed.topics)
+    return AnalyzeTopic(primary=candidates[0].label, candidates=candidates)
 
 
 def analyze_sentiment_with_llm(
     client: AzureOpenAI,
     deployment_name: str,
     original_text: str,
-    topics: list[str],
 ) -> AnalyzeSentiment:
-    """토픽 컨텍스트와 원문 텍스트를 사용해 감정 분포를 추출한다."""
+    """Sentiment 세분화 결과를 LLM으로 추출한다."""
     if original_text.strip() == "":
         raise AnalyzeInferenceError(stage="sentiment", message="Original text is empty.")
-    if not topics:
-        raise AnalyzeInferenceError(stage="sentiment", message="Topics are required.")
 
     try:
         completion = client.chat.completions.create(
             model=deployment_name,
             reasoning_effort=SENTIMENT_REASONING_EFFORT,
+            max_completion_tokens=SENTIMENT_MAX_OUTPUT_TOKENS,
             response_format={
                 "type": "json_schema",
                 "json_schema": SENTIMENT_EXTRACTION_JSON_SCHEMA,
             },
             messages=[
                 {"role": "system", "content": _build_sentiment_system_prompt()},
-                {
-                    "role": "user",
-                    "content": _build_sentiment_user_prompt(
-                        original_text=original_text,
-                        topics=topics,
-                    ),
-                },
+                {"role": "user", "content": _build_sentiment_user_prompt(original_text)},
             ],
         )
     except Exception as exc:
@@ -442,7 +622,6 @@ def analyze_sentiment_with_llm(
 
     content = _extract_message_content(completion=completion, stage="sentiment")
     payload = _parse_json_payload(content=content, stage="sentiment")
-
     try:
         parsed = SentimentExtractionResult.model_validate(payload)
     except Exception as exc:
@@ -451,18 +630,81 @@ def analyze_sentiment_with_llm(
             message="Sentiment schema validation failed.",
         ) from exc
 
-    return _normalize_sentiment_confidences(
-        positive_raw=parsed.sentiment.positive.confidence,
-        negative_raw=parsed.sentiment.negative.confidence,
-        neutral_raw=parsed.sentiment.neutral.confidence,
+    normalized = _normalize_distribution(
+        raw_scores=[
+            parsed.sentiment.positive.confidence,
+            parsed.sentiment.negative.confidence,
+            parsed.sentiment.neutral.confidence,
+        ],
+        labels=_SENTIMENT_AXIS_ORDER,
+        stage="sentiment",
+    )
+    distribution = AnalyzeSentimentDistribution(**normalized)
+    polarity, confidence = _pick_max_axis(
+        values=normalized,
+        axis_order=_SENTIMENT_AXIS_ORDER,
+    )
+    return AnalyzeSentiment(
+        distribution=distribution,
+        polarity=polarity,  # type: ignore[arg-type]
+        confidence=confidence,
     )
 
 
-def _compose_topic_string(topics: list[str]) -> str:
-    """topics 리스트를 단일 응답 문자열로 결합한다."""
-    if not topics:
-        raise AnalyzeInferenceError(stage="topic", message="Topics are empty.")
-    return ", ".join(topics)
+def analyze_emotion_with_llm(
+    client: AzureOpenAI,
+    deployment_name: str,
+    original_text: str,
+) -> AnalyzeEmotion:
+    """Emotion 세분화 결과를 LLM으로 추출한다."""
+    if original_text.strip() == "":
+        raise AnalyzeInferenceError(stage="emotion", message="Original text is empty.")
+
+    try:
+        completion = client.chat.completions.create(
+            model=deployment_name,
+            reasoning_effort=EMOTION_REASONING_EFFORT,
+            max_completion_tokens=EMOTION_MAX_OUTPUT_TOKENS,
+            response_format={
+                "type": "json_schema",
+                "json_schema": EMOTION_EXTRACTION_JSON_SCHEMA,
+            },
+            messages=[
+                {"role": "system", "content": _build_emotion_system_prompt()},
+                {"role": "user", "content": _build_emotion_user_prompt(original_text)},
+            ],
+        )
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="emotion",
+            message="Failed to call Azure OpenAI for emotion analysis.",
+        ) from exc
+
+    content = _extract_message_content(completion=completion, stage="emotion")
+    payload = _parse_json_payload(content=content, stage="emotion")
+    try:
+        parsed = EmotionExtractionResult.model_validate(payload)
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="emotion",
+            message="Emotion schema validation failed.",
+        ) from exc
+
+    normalized = _normalize_distribution(
+        raw_scores=[getattr(parsed.emotions, label).confidence for label in BASE_EMOTION_LABELS],
+        labels=BASE_EMOTION_LABELS,
+        stage="emotion",
+    )
+    distribution = AnalyzeEmotionDistribution(**normalized)
+    primary, confidence = _pick_max_axis(
+        values=normalized,
+        axis_order=BASE_EMOTION_LABELS,
+    )
+    return AnalyzeEmotion(
+        distribution=distribution,
+        primary=primary,  # type: ignore[arg-type]
+        confidence=confidence,
+    )
 
 
 def run_analyze_pipeline(
@@ -487,7 +729,9 @@ def run_analyze_pipeline(
 
     try:
         llm_config = get_llm_config()
-        client = _build_azure_client(llm_config=llm_config)
+        topic_client = _build_azure_client(llm_config=llm_config)
+        sentiment_client = _build_azure_client(llm_config=llm_config)
+        emotion_client = _build_azure_client(llm_config=llm_config)
     except Exception as exc:
         raise AnalyzeInferenceError(
             stage="config",
@@ -495,50 +739,84 @@ def run_analyze_pipeline(
         ) from exc
 
     preprocessed_text = preprocess_for_topic(text=request.text)
-    topics = extract_topics_with_llm(
-        client=client,
-        deployment_name=llm_config.LLM_DEPLOYMENT_NAME,
-        preprocessed_text=preprocessed_text,
-    )
-    topic = _compose_topic_string(topics=topics)
-    _record_log(
-        request_id=resolved_request_id,
-        step_id="extract_topic",
-        message_ko=f"의제 추론 완료: topics={topics}",
-        collected_logs=collected_logs,
-        on_log=on_log,
-    )
 
-    sentiment = analyze_sentiment_with_llm(
-        client=client,
-        deployment_name=llm_config.LLM_DEPLOYMENT_NAME,
-        original_text=request.text,
-        topics=topics,
-    )
-    _record_log(
-        request_id=resolved_request_id,
-        step_id="analyze_sentiment",
-        message_ko=(
-            "감정 분포 추론 완료: "
-            "positive="
-            f"{sentiment.positive.confidence}, "
-            "negative="
-            f"{sentiment.negative.confidence}, "
-            "neutral="
-            f"{sentiment.neutral.confidence}"
-        ),
-        collected_logs=collected_logs,
-        on_log=on_log,
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        topic_future = executor.submit(
+            extract_topics_with_llm,
+            topic_client,
+            llm_config.LLM_DEPLOYMENT_NAME,
+            preprocessed_text,
+        )
+        sentiment_future = executor.submit(
+            analyze_sentiment_with_llm,
+            sentiment_client,
+            llm_config.LLM_DEPLOYMENT_NAME,
+            request.text,
+        )
+        emotion_future = executor.submit(
+            analyze_emotion_with_llm,
+            emotion_client,
+            llm_config.LLM_DEPLOYMENT_NAME,
+            request.text,
+        )
+
+        topic = topic_future.result()
+        _record_log(
+            request_id=resolved_request_id,
+            step_id="extract_topic",
+            message_ko=(
+                "Topic 세분화 완료: "
+                f"primary={topic.primary}, candidates={len(topic.candidates)}"
+            ),
+            collected_logs=collected_logs,
+            on_log=on_log,
+        )
+
+        sentiment = sentiment_future.result()
+        _record_log(
+            request_id=resolved_request_id,
+            step_id="analyze_sentiment",
+            message_ko=(
+                "Sentiment 세분화 완료: "
+                f"polarity={sentiment.polarity}, confidence={sentiment.confidence}"
+            ),
+            collected_logs=collected_logs,
+            on_log=on_log,
+        )
+
+        emotion = emotion_future.result()
+        _record_log(
+            request_id=resolved_request_id,
+            step_id="analyze_emotion",
+            message_ko=(
+                "Emotion 세분화 완료: "
+                f"primary={emotion.primary}, confidence={emotion.confidence}"
+            ),
+            collected_logs=collected_logs,
+            on_log=on_log,
+        )
+
+    correlation = _compute_correlation(
+        topic=topic,
+        sentiment=sentiment,
+        emotion=emotion,
     )
 
     result = AnalyzeResponse(
         topic=topic,
         sentiment=sentiment,
+        emotion=emotion,
+        correlation=correlation,
     )
     _record_log(
         request_id=resolved_request_id,
         step_id="compose_response",
-        message_ko="응답 스키마 조합 완료",
+        message_ko=(
+            "Correlation 재조합 완료: "
+            f"ts={correlation.topic_sentiment}, "
+            f"te={correlation.topic_emotion}, "
+            f"se={correlation.sentiment_emotion}"
+        ),
         collected_logs=collected_logs,
         on_log=on_log,
     )
