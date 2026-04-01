@@ -218,15 +218,31 @@ def _render_sentiment_summary(result: dict[str, Any]) -> None:
         return
 
     rows: list[dict[str, Any]] = []
-    for label in ("positive", "negative", "neutral"):
-        confidence = "-"
-        axis = sentiment.get(label)
-        if isinstance(axis, dict):
-            confidence = axis.get("confidence", "-")
-        rows.append({"label": label, "confidence": confidence})
+    distribution = sentiment.get("distribution")
+    if isinstance(distribution, dict):
+        for label in ("positive", "negative", "neutral"):
+            rows.append(
+                {
+                    "label": label,
+                    "confidence": distribution.get(label, "-"),
+                }
+            )
+    else:
+        # 하위호환: 구 스키마(sentiment.positive/negative/neutral.confidence)
+        for label in ("positive", "negative", "neutral"):
+            confidence = "-"
+            axis = sentiment.get(label)
+            if isinstance(axis, dict):
+                confidence = axis.get("confidence", "-")
+            rows.append({"label": label, "confidence": confidence})
 
     st.caption("Sentiment 분포")
     st.table(rows)
+
+    if isinstance(distribution, dict):
+        polarity = sentiment.get("polarity", "-")
+        confidence = sentiment.get("confidence", "-")
+        st.caption(f"Polarity: {polarity} ({confidence})")
 
 
 def _init_session_state() -> None:

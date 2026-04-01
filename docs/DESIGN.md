@@ -1,7 +1,7 @@
 # Design Guidelines
 
 ## 도메인 목표
-회의록(Transcript)과 시뮬레이션 엔진에서 넘어온 대화 스크립트를 분석하여 **의제(Topic)**, **핵심 논의점**, **회의 분위기(Mood - 예: 건설적, 갈등, 지루함 등)**를 도출하는 API를 제공합니다.
+회의록(Transcript)과 시뮬레이션 엔진에서 넘어온 대화 스크립트를 분석하여 **토픽(Topic)**, **감성(Sentiment)**, **정서(Emotion)**, **상관도(Correlation)**를 도출하는 API를 제공합니다.
 
 ## 시스템 설계 원칙
 1. **SDD (Specification Driven Development)**
@@ -16,7 +16,7 @@
 ## 핵심 API
 - `POST /api/v1/analyze`:
   - Request: `AnalyzeRequest` (meeting_id, text)
-  - Response: `AnalyzeResponse` (topic, sentiment)
+  - Response: `AnalyzeResponse` (topic, sentiment, emotion, correlation)
 - `POST /api/v1/analyze/inspect`:
   - Purpose: Streamlit/디버그 UI 용도로 analyze 결과 + 내부 추적 정보(로직 단계, 실행 로그)를 함께 반환
   - Request: `AnalyzeRequest`
@@ -52,16 +52,26 @@
 
 ## Topic Extraction 설계
 
-- Analyze는 Topic과 Sentiment를 분리한 2-stage LLM 파이프라인을 사용합니다.
-- Stage 1(`extract_topics_with_llm`):
+- Analyze는 3개 분기를 병렬 실행하는 fan-out 파이프라인을 사용합니다.
+  - Branch Topic: `extract_topics_with_llm`
+  - Branch Sentiment: `analyze_sentiment_with_llm`
+  - Branch Emotion: `analyze_emotion_with_llm`
+- fan-out 결과를 fan-in하여 최종 `AnalyzeResponse(topic, sentiment, emotion, correlation)`를 조합합니다.
+- `extract_topics_with_llm`:
   - 입력: 전처리된 회의 텍스트
-  - 출력: JSON structured `topics: string[]`
+  - 출력: JSON structured topic 후보 목록(`label`, `confidence`)
   - 모델 추론 강도: `reasoning_effort=none`
-- Stage 2(`analyze_sentiment_with_llm`):
-  - 입력: 원문 텍스트 + Stage 1의 topics
+  - 출력 토큰 상한: `max_completion_tokens=120`
+- `analyze_sentiment_with_llm`:
+  - 입력: 원문 텍스트
   - 출력: JSON structured `sentiment.positive/negative/neutral`
   - 모델 추론 강도: `reasoning_effort=minimal`
-- 최종 응답 `topic`은 topics 리스트를 `", "`로 결합한 문자열입니다.
-- 최종 응답 `sentiment`는 `positive/negative/neutral` 3축 confidence를 포함합니다.
-- confidence는 정수 퍼센트(`0~100`)이며, 서버가 Largest Remainder 방식으로 정규화해 합계 100을 보장합니다.
-- fallback은 사용하지 않으며, 어느 단계에서든 LLM 호출/파싱/검증 실패 시 요청 전체를 502로 실패 처리합니다.
+  - 출력 토큰 상한: `max_completion_tokens=80`
+- `analyze_emotion_with_llm`:
+  - 입력: 원문 텍스트
+  - 출력: JSON structured 기본 8정서 분포
+  - 모델 추론 강도: `reasoning_effort=minimal`
+  - 출력 토큰 상한: `max_completion_tokens=180`
+- 분포 값은 정수 퍼센트(`0~100`)로 정규화되며 합계 100을 보장합니다.
+- `correlation`은 topic/sentiment/emotion의 신호를 재조합해 상관도 3축과 요약문을 제공합니다.
+- fallback은 사용하지 않으며, 어느 분기에서든 LLM 호출/파싱/검증 실패 시 요청 전체를 502로 실패 처리합니다.
