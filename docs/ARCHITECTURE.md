@@ -36,6 +36,12 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
   - API Version: `LLM_API_VERSION` 우선, 없으면 `LLM_MODEL_VERSION`, 둘 다 없으면 기본값 `2025-04-01-preview`
 - 분류 결과는 `app/types/sentiment.py`의 `TurnSentimentResponse`로 검증 후 반환됩니다.
 
+### Health Check Flow
+
+- `app/runtime/health.py`의 `GET /healthz`가 프로세스 응답성 확인 진입점입니다.
+- 응답은 `app/types/health.py`의 `HealthzResponse`로 고정되며, 현재 상태(`status="ok"`)만 반환합니다.
+- `docker/Dockerfile.api`는 이미지 레벨 `HEALTHCHECK`를 내장하고, Python `urllib`로 `http://127.0.0.1:${FASTAPI_SERVER_PORT:-8000}/healthz`를 주기적으로 호출합니다.
+
 ### Analyze Inspect Flow (REST + SSE)
 
 - `app/service/analyze_service.py`의 `run_analyze_pipeline`이 `/analyze`, `/analyze/inspect`, `/analyze/inspect/stream`이 공통으로 호출하는 단일 알고리즘 메서드입니다.
