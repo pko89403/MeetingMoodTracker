@@ -36,6 +36,7 @@ A FastAPI-based application that analyzes meeting transcripts to identify discus
   - `MEETING_MOOD_TRACKER_SUBMODULE_PATH` (기본값: `./MeetingMoodTracker`)
 - 상위 리포지토리에서 사용할 때는 템플릿 내용을 상위 `docker-compose.yml`에 반영하거나 include하여 사용합니다.
 - 템플릿은 `APP_ENV` 값에 맞춰 `${APP_ENV}.env`를 `env_file`과 컨테이너 내부 `/app/${APP_ENV}.env`에 함께 연결합니다.
+- API Docker 이미지는 `HEALTHCHECK`를 내장하며, Python 표준 라이브러리(`urllib`)로 `/healthz`를 주기적으로 점검합니다.
 
 대표 실행 예시(상위 리포지토리 루트 기준):
 
@@ -57,6 +58,7 @@ docker compose up --build
 
 검증:
 - 브라우저에서 `http://localhost:${FASTAPI_SERVER_PORT}/docs` 접근
+- `http://localhost:${FASTAPI_SERVER_PORT}/healthz`가 `{"status":"ok"}`를 반환하는지 확인
 
 ## Turn Sentiment API
 
@@ -74,6 +76,13 @@ docker compose up --build
   - `label`
   - `confidence` (`0.0` - `1.0`)
   - `evidence`
+
+## Health Check API
+
+- Endpoint: `GET /healthz`
+- Purpose: 프로세스 응답성(liveness) 확인
+- Response fields:
+  - `status` (`"ok"`)
 
 ## LLM Environment Config API
 

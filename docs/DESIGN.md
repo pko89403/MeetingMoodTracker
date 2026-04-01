@@ -32,6 +32,9 @@
   - 특이사항:
     - 한국어 중심 텍스트 + 영어 혼합 입력(code-switching) 대응
     - OpenAI SDK(Azure OpenAI) + `json_schema` 구조화 출력 강제
+- `GET /healthz`:
+  - Purpose: 컨테이너/런타임에서 애플리케이션 프로세스 응답성(liveness) 확인
+  - Response: `HealthzResponse` (`status="ok"`)
 - `GET /api/env/v1`:
   - Purpose: LLM 연동에 필요한 환경설정 조회 (read-only)
   - Source: `APP_ENV` 기준 `dev.env` 또는 `prod.env` 파일
