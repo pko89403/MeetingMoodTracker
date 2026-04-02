@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKTREE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-export UV_PROJECT_ENVIRONMENT="${WORKTREE_ROOT}/.venv"
+export UV_PROJECT_ENVIRONMENT="${WORKTREE_ROOT}/backend/.venv"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-${HOME}/.cache/uv}"
 
 # Homebrew/local bin이 빠진 셸에서도 공통 툴 탐색이 가능하도록 PATH를 보강한다.
@@ -106,10 +106,10 @@ else
 fi
 
 echo "[setup] uv 의존성 동기화 시작 (cache: ${UV_CACHE_DIR})"
-cd "${WORKTREE_ROOT}"
+cd "${WORKTREE_ROOT}/backend"
 "${UV_BIN}" sync --locked
 
-if [[ "${SKIP_FEATURE_ISSUE_SYNC:-0}" != "1" ]] && [[ -f "${WORKTREE_ROOT}/scripts/sync_feature_issues.py" ]]; then
+if [[ "${SKIP_FEATURE_ISSUE_SYNC:-0}" != "1" ]] && [[ -f "${WORKTREE_ROOT}/backend/scripts/sync_feature_issues.py" ]]; then
   GH_BIN=""
   if command -v gh >/dev/null 2>&1; then
     GH_BIN="$(command -v gh)"
@@ -128,12 +128,22 @@ if [[ "${SKIP_FEATURE_ISSUE_SYNC:-0}" != "1" ]] && [[ -f "${WORKTREE_ROOT}/scrip
 
   if [[ -n "${GITHUB_TOKEN:-}" ]]; then
     echo "[setup] feature_list <-> GitHub issue 동기화 실행"
-    if ! "${UV_BIN}" run python scripts/sync_feature_issues.py --create-missing --sync-state --write-feature-file --apply; then
+    if ! "${UV_BIN}" run python scripts/sync_feature_issues.py --feature-file ../feature_list.json --create-missing --sync-state --write-feature-file --apply; then
       echo "[setup] 경고: feature issue 동기화 실패 (개발 환경 셋업은 계속 진행)"
     fi
   else
     echo "[setup] 안내: GITHUB_TOKEN/gh auth 없음으로 feature issue 동기화 단계는 건너뜀"
   fi
+fi
+
+# pre-commit 훅이 scripts/pre_commit_hook.sh를 실행하도록 설치한다.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+HOOK_TARGET="${REPO_ROOT}/.git/hooks/pre-commit"
+HOOK_SCRIPT="${REPO_ROOT}/scripts/pre_commit_hook.sh"
+if [[ ! -f "${HOOK_TARGET}" ]] || ! grep -q "pre_commit_hook.sh" "${HOOK_TARGET}" 2>/dev/null; then
+  printf '#!/usr/bin/env bash\nexec "%s"\n' "${HOOK_SCRIPT}" > "${HOOK_TARGET}"
+  chmod +x "${HOOK_TARGET}"
+  echo "[setup] pre-commit hook 설치 완료: ${HOOK_TARGET}"
 fi
 
 echo "[setup] worktree 셋업 완료"

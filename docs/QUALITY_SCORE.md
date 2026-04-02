@@ -23,6 +23,6 @@ Service 레이어가 API 컨트롤러 레이어에 접근하려고 하면 즉시
 - manifest는 중복 ID/경로, 파일 존재 여부를 `scripts/validate_capability_manifest.py`로 검사합니다.
 
 ## 6. 한국어 개발자 경험(DX) 준수
-- `app/`, `scripts/` 내 클래스/함수에는 한국어 docstring을 유지합니다.
+- `backend/app/`, `backend/scripts/` 내 클래스/함수에는 한국어 docstring을 유지합니다.
 - 한국어 발화 및 한/영 혼합 발화 케이스가 테스트/샘플에 유지되어야 합니다.
 - 언어 정책 상세는 `.agents/rules/korean-developer-experience.md`를 기준으로 합니다.
