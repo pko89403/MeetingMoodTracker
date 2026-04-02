@@ -29,12 +29,11 @@ const SIGNAL_COLORS = {
 };
 
 const EMOTION_COLORS = {
-  joy: "#eab308", // yellow
-  anger: "#dc2626", // red
-  fear: "#9333ea", // purple
-  sadness: "#3b82f6", // blue
-  surprise: "#f43f5e", // rose
-  disgust: "#84cc16", // lime
+  joy: "#eab308",         // yellow
+  anger: "#dc2626",       // red
+  anxiety: "#9333ea",     // purple  (was fear)
+  sadness: "#3b82f6",     // blue
+  excitement: "#f43f5e",  // rose    (was surprise)
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -200,9 +199,9 @@ export function TimelineChart({ turns = [], view = "signals", onSelectTurn, sele
               <>
                 <Line type="linear" dataKey="joy" name="Joy" stroke={EMOTION_COLORS.joy} strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 6 }} opacity={isSelectedActive ? 0.3 : 1} />
                 <Line type="linear" dataKey="anger" name="Anger" stroke={EMOTION_COLORS.anger} strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 6 }} opacity={isSelectedActive ? 0.3 : 1} />
-                <Line type="linear" dataKey="fear" name="Fear" stroke={EMOTION_COLORS.fear} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 5 }} opacity={isSelectedActive ? 0.3 : 0.8} />
+                <Line type="linear" dataKey="anxiety" name="Anxiety" stroke={EMOTION_COLORS.anxiety} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 5 }} opacity={isSelectedActive ? 0.3 : 0.8} />
                 <Line type="linear" dataKey="sadness" name="Sadness" stroke={EMOTION_COLORS.sadness} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 5 }} opacity={isSelectedActive ? 0.3 : 0.8} />
-                <Line type="linear" dataKey="surprise" name="Surprise" stroke={EMOTION_COLORS.surprise} strokeWidth={1.5} strokeDasharray="4 4" dot={{ r: 2 }} activeDot={{ r: 5 }} opacity={isSelectedActive ? 0.2 : 0.6} />
+                <Line type="linear" dataKey="excitement" name="Excitement" stroke={EMOTION_COLORS.excitement} strokeWidth={1.5} strokeDasharray="4 4" dot={{ r: 2 }} activeDot={{ r: 5 }} opacity={isSelectedActive ? 0.2 : 0.6} />
               </>
             )}
 
@@ -223,9 +222,9 @@ export function TimelineChart({ turns = [], view = "signals", onSelectTurn, sele
                 <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{key}</span>
               </div>
             ))
-            : Object.entries(EMOTION_COLORS).filter(([key]) => key !== 'disgust').map(([key, color]) => (
+            : Object.entries(EMOTION_COLORS).map(([key, color]) => (
               <div key={key} className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity">
-                {key === 'surprise' ? (
+                {key === 'excitement' ? (
                    <div className="w-3 border-t-[1.5px] border-dashed" style={{ borderColor: color }} />
                 ) : (
                    <div className="w-3 h-1.5 rounded-sm" style={{ backgroundColor: color }} />
