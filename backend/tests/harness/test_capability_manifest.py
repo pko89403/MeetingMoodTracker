@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def test_capability_manifest_integrity() -> None:
-    root_dir = Path(__file__).parent.parent.parent
+    root_dir = Path(__file__).parent.parent.parent.parent
     manifest_path = root_dir / ".agents" / "vendor" / "capability-manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     capabilities = manifest["capabilities"]
@@ -26,10 +26,10 @@ def test_capability_manifest_integrity() -> None:
 
 
 def test_capability_manifest_validator_script() -> None:
-    root_dir = Path(__file__).parent.parent.parent
+    backend_dir = Path(__file__).parent.parent.parent
     result = subprocess.run(
         [sys.executable, "scripts/validate_capability_manifest.py"],
-        cwd=str(root_dir),
+        cwd=str(backend_dir),
         capture_output=True,
         text=True,
     )

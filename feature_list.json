@@ -123,6 +123,42 @@
         "state": "closed",
         "synced_at": "2026-04-01T02:14:44+00:00"
       }
+    },
+    {
+      "id": "feat_hierarchical_meeting_analysis",
+      "name": "Hierarchical Meeting Analysis API Integration",
+      "description": "Project-Meeting-Agent-Turn 계층 구조를 반영한 백엔드 분석 파이프라인 구축 및 프론트엔드 대시보드 연동",
+      "passes": false,
+      "issue_rule": {
+        "objective": "프론트엔드 대시보드의 시각화 요구사항을 충족하기 위해 백엔드를 계층적 데이터 구조(Project > Meeting > Agent > Turn)로 재설계하고 연동한다.",
+        "in_scope": [
+          "project_id, meeting_id 기반의 요청/응답 스펙 확장 (Pydantic)",
+          "화자(Agent) 및 발화(Turn) 식별을 위한 텍스트 파서 구현",
+          "발화별 감정/시그널 분석 및 화자별 통계 집계 로직 추가",
+          "백엔드 CORS 설정 및 프론트엔드 API 클라이언트/서비스 구현",
+          "React 대시보드(TimelineChart, SpeakerCards) 실제 데이터 연동"
+        ],
+        "out_of_scope": [
+          "실시간 음성 인식(STT) 연동",
+          "다국어 분석 지원 (현재 한국어 기준)",
+          "사용자 인증 및 권한 관리 (Auth)"
+        ],
+        "implementation_checklist": [
+          "backend/app/types/mood.py 계층형 모델 정의",
+          "backend/app/service/analyze_service.py 파싱 및 집계 로직 추가",
+          "frontend/src/api/analyzeService.ts SSE/REST 호출부 구현",
+          "Dashboard.tsx 상태 관리 로직 Mock 제거 및 API 연결"
+        ],
+        "verification": [
+          "API 응답에 turns와 speakers 배열이 정확한 계층 구조로 포함됨",
+          "프론트엔드 타임라인 차트에 발화별 감정 변화가 시각화됨",
+          "화자 카드에 평균 감정 및 주도성 지표가 실제 데이터로 표시됨"
+        ],
+        "done_criteria": [
+          "프론트엔드 대시보드가 Mock 데이터 없이 실제 분석 결과로 렌더링됨",
+          "모든 분석 단계가 SSE 스트림을 통해 실시간으로 시각화됨"
+        ]
+      }
     }
   ]
 }

@@ -8,15 +8,18 @@ from app.types.analyze_inspect import (
     AnalyzeLogEntry,
     AnalyzeLogicStep,
 )
+from app.types.emotion import (
+    EmotionConfidenceValue,
+    EmotionScores,
+    MeetingSignalConfidenceValue,
+    MeetingSignals,
+    TurnEmotionResponse,
+)
 from app.types.mood import (
-    AnalyzeCorrelation,
-    AnalyzeEmotion,
-    AnalyzeEmotionDistribution,
     AnalyzeResponse,
     AnalyzeSentiment,
-    AnalyzeSentimentDistribution,
-    AnalyzeTopic,
-    AnalyzeTopicCandidate,
+    MeetingRubrics,
+    SentimentConfidence,
 )
 
 client = TestClient(app)
@@ -31,47 +34,42 @@ def _payload() -> dict[str, str]:
 
 def _sample_result() -> AnalyzeResponse:
     return AnalyzeResponse(
-        topic=AnalyzeTopic(
-            primary="Architecture",
-            candidates=[
-                AnalyzeTopicCandidate(label="Architecture", confidence=82),
-                AnalyzeTopicCandidate(label="Budget", confidence=64),
-            ],
-        ),
+        topic="Architecture",
         sentiment=AnalyzeSentiment(
-            distribution=AnalyzeSentimentDistribution(
-                positive=63,
-                negative=12,
-                neutral=25,
-            ),
-            polarity="positive",
-            confidence=63,
+            positive=SentimentConfidence(confidence=63),
+            negative=SentimentConfidence(confidence=12),
+            neutral=SentimentConfidence(confidence=25),
         ),
-        emotion=AnalyzeEmotion(
-            distribution=AnalyzeEmotionDistribution(
-                anger=10,
-                joy=35,
-                sadness=5,
-                neutral=10,
-                anxiety=20,
-                frustration=8,
-                excitement=7,
-                confusion=5,
+        emotion=TurnEmotionResponse(
+            emotions=EmotionScores(
+                anger=EmotionConfidenceValue(confidence=10),
+                joy=EmotionConfidenceValue(confidence=35),
+                sadness=EmotionConfidenceValue(confidence=5),
+                neutral=EmotionConfidenceValue(confidence=10),
+                anxiety=EmotionConfidenceValue(confidence=20),
+                frustration=EmotionConfidenceValue(confidence=8),
+                excitement=EmotionConfidenceValue(confidence=7),
+                confusion=EmotionConfidenceValue(confidence=5),
             ),
-            primary="joy",
-            confidence=35,
+            meeting_signals=MeetingSignals(
+                tension=MeetingSignalConfidenceValue(confidence=50),
+                alignment=MeetingSignalConfidenceValue(confidence=60),
+                urgency=MeetingSignalConfidenceValue(confidence=70),
+                clarity=MeetingSignalConfidenceValue(confidence=80),
+                engagement=MeetingSignalConfidenceValue(confidence=90),
+            ),
+            emerging_emotions=[],
         ),
-        correlation=AnalyzeCorrelation(
-            topic_sentiment=73,
-            topic_emotion=59,
-            sentiment_emotion=69,
-            summary="주요 토픽과 감성/감정 사이에 중간 이상 상관이 관찰됩니다.",
+        rubric=MeetingRubrics(
+            dominance=50,
+            efficiency=60,
+            cohesion=70,
         ),
     )
 
 
 def test_analyze_meeting_returns_pipeline_result(monkeypatch) -> None:
-    def _fake_run_analyze_pipeline(request) -> AnalyzeInspectResponse:
+    async def _fake_run_analyze_pipeline(request) -> AnalyzeInspectResponse:
         assert request.meeting_id == "m_12345"
         return AnalyzeInspectResponse(
             request_id="anl_test_001",

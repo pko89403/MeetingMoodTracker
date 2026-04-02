@@ -34,9 +34,9 @@ def test_get_llm_config_uses_dev_file_when_app_env_is_unset(
         },
     )
     monkeypatch.delenv("APP_ENV", raising=False)
-    monkeypatch.setattr(llm_config_service, "get_project_root", lambda: tmp_path)
+    monkeypatch.setattr("app.service.llm_config_service.get_project_root", lambda: tmp_path)
 
-    response = client.get("/api/env/v1")
+    response = client.get("/api/v1/env")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -64,9 +64,9 @@ def test_get_llm_config_uses_prod_file_when_app_env_is_prod(
         },
     )
     monkeypatch.setenv("APP_ENV", "prod")
-    monkeypatch.setattr(llm_config_service, "get_project_root", lambda: tmp_path)
+    monkeypatch.setattr("app.service.llm_config_service.get_project_root", lambda: tmp_path)
 
-    response = client.get("/api/env/v1")
+    response = client.get("/api/v1/env")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -93,9 +93,9 @@ def test_get_llm_config_returns_422_when_required_keys_are_missing(
         },
     )
     monkeypatch.delenv("APP_ENV", raising=False)
-    monkeypatch.setattr(llm_config_service, "get_project_root", lambda: tmp_path)
+    monkeypatch.setattr("app.service.llm_config_service.get_project_root", lambda: tmp_path)
 
-    response = client.get("/api/env/v1")
+    response = client.get("/api/v1/env")
 
     assert response.status_code == 422
     assert response.json()["detail"]["error_code"] == "LLM_CONFIG_MISSING_KEY"
@@ -116,9 +116,9 @@ def test_get_llm_config_returns_422_when_only_legacy_llm_model_key_exists(
         },
     )
     monkeypatch.delenv("APP_ENV", raising=False)
-    monkeypatch.setattr(llm_config_service, "get_project_root", lambda: tmp_path)
+    monkeypatch.setattr("app.service.llm_config_service.get_project_root", lambda: tmp_path)
 
-    response = client.get("/api/env/v1")
+    response = client.get("/api/v1/env")
 
     assert response.status_code == 422
     assert response.json()["detail"]["error_code"] == "LLM_CONFIG_MISSING_KEY"
@@ -133,9 +133,9 @@ def test_get_llm_config_returns_500_when_target_env_file_is_missing(
     tmp_path: Path,
 ) -> None:
     monkeypatch.delenv("APP_ENV", raising=False)
-    monkeypatch.setattr(llm_config_service, "get_project_root", lambda: tmp_path)
+    monkeypatch.setattr("app.service.llm_config_service.get_project_root", lambda: tmp_path)
 
-    response = client.get("/api/env/v1")
+    response = client.get("/api/v1/env")
 
     assert response.status_code == 500
     assert response.json()["detail"]["error_code"] == "LLM_CONFIG_LOAD_FAILED"
@@ -149,7 +149,7 @@ def test_get_llm_config_returns_500_when_app_env_is_invalid(
     monkeypatch.setenv("APP_ENV", "stage")
     monkeypatch.setattr(llm_config_service, "get_project_root", lambda: tmp_path)
 
-    response = client.get("/api/env/v1")
+    response = client.get("/api/v1/env")
 
     assert response.status_code == 500
     assert response.json()["detail"]["error_code"] == "LLM_CONFIG_LOAD_FAILED"

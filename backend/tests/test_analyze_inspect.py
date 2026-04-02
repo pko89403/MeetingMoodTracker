@@ -10,15 +10,18 @@ from app.types.analyze_inspect import (
     AnalyzeLogEntry,
     AnalyzeLogicStep,
 )
+from app.types.emotion import (
+    EmotionConfidenceValue,
+    EmotionScores,
+    MeetingSignalConfidenceValue,
+    MeetingSignals,
+    TurnEmotionResponse,
+)
 from app.types.mood import (
-    AnalyzeCorrelation,
-    AnalyzeEmotion,
-    AnalyzeEmotionDistribution,
     AnalyzeResponse,
     AnalyzeSentiment,
-    AnalyzeSentimentDistribution,
-    AnalyzeTopic,
-    AnalyzeTopicCandidate,
+    MeetingRubrics,
+    SentimentConfidence,
 )
 
 client = TestClient(app)
@@ -33,41 +36,36 @@ def _payload() -> dict[str, str]:
 
 def _sample_result() -> AnalyzeResponse:
     return AnalyzeResponse(
-        topic=AnalyzeTopic(
-            primary="Architecture",
-            candidates=[
-                AnalyzeTopicCandidate(label="Architecture", confidence=80),
-                AnalyzeTopicCandidate(label="Roadmap", confidence=61),
-            ],
-        ),
+        topic="Architecture",
         sentiment=AnalyzeSentiment(
-            distribution=AnalyzeSentimentDistribution(
-                positive=60,
-                negative=10,
-                neutral=30,
-            ),
-            polarity="positive",
-            confidence=60,
+            positive=SentimentConfidence(confidence=60),
+            negative=SentimentConfidence(confidence=10),
+            neutral=SentimentConfidence(confidence=30),
         ),
-        emotion=AnalyzeEmotion(
-            distribution=AnalyzeEmotionDistribution(
-                anger=8,
-                joy=32,
-                sadness=6,
-                neutral=12,
-                anxiety=22,
-                frustration=9,
-                excitement=7,
-                confusion=4,
+        emotion=TurnEmotionResponse(
+            emotions=EmotionScores(
+                anger=EmotionConfidenceValue(confidence=8),
+                joy=EmotionConfidenceValue(confidence=32),
+                sadness=EmotionConfidenceValue(confidence=6),
+                neutral=EmotionConfidenceValue(confidence=12),
+                anxiety=EmotionConfidenceValue(confidence=22),
+                frustration=EmotionConfidenceValue(confidence=9),
+                excitement=EmotionConfidenceValue(confidence=7),
+                confusion=EmotionConfidenceValue(confidence=4),
             ),
-            primary="joy",
-            confidence=32,
+            meeting_signals=MeetingSignals(
+                tension=MeetingSignalConfidenceValue(confidence=50),
+                alignment=MeetingSignalConfidenceValue(confidence=60),
+                urgency=MeetingSignalConfidenceValue(confidence=70),
+                clarity=MeetingSignalConfidenceValue(confidence=80),
+                engagement=MeetingSignalConfidenceValue(confidence=90),
+            ),
+            emerging_emotions=[],
         ),
-        correlation=AnalyzeCorrelation(
-            topic_sentiment=70,
-            topic_emotion=56,
-            sentiment_emotion=67,
-            summary="토픽과 감성/감정의 상관도가 중간 이상입니다.",
+        rubric=MeetingRubrics(
+            dominance=50,
+            efficiency=60,
+            cohesion=70,
         ),
     )
 
@@ -95,7 +93,7 @@ def _parse_sse_response_body(body: str) -> list[tuple[str, dict]]:
 def test_analyze_and_inspect_return_identical_result_for_same_input(
     monkeypatch,
 ) -> None:
-    def _fake_run_analyze_pipeline(request) -> AnalyzeInspectResponse:
+    async def _fake_run_analyze_pipeline(request) -> AnalyzeInspectResponse:
         assert request.meeting_id == "m_12345"
         return AnalyzeInspectResponse(
             request_id="anl_test_002",
@@ -180,7 +178,7 @@ def test_analyze_and_inspect_return_identical_result_for_same_input(
 def test_analyze_and_inspect_share_single_service_method(monkeypatch) -> None:
     call_count = {"count": 0}
 
-    def _fake_run_analyze_pipeline(request) -> AnalyzeInspectResponse:
+    async def _fake_run_analyze_pipeline(request) -> AnalyzeInspectResponse:
         call_count["count"] += 1
         assert request.meeting_id == "m_12345"
         return AnalyzeInspectResponse(
@@ -217,7 +215,7 @@ def test_analyze_and_inspect_share_single_service_method(monkeypatch) -> None:
 
 
 def test_analyze_inspect_returns_502_on_llm_failure(monkeypatch) -> None:
-    def _raise_error(request) -> AnalyzeInspectResponse:
+    async def _raise_error(request) -> AnalyzeInspectResponse:
         _ = request
         raise AnalyzeInferenceError(stage="sentiment", message="forced failure")
 
@@ -235,7 +233,7 @@ def test_analyze_inspect_returns_502_on_llm_failure(monkeypatch) -> None:
 
 
 def test_analyze_inspect_stream_emits_expected_event_order(monkeypatch) -> None:
-    def _fake_run_analyze_pipeline(
+    async def _fake_run_analyze_pipeline(
         request,
         on_log=None,
         request_id=None,
@@ -292,7 +290,7 @@ def test_analyze_inspect_stream_emits_expected_event_order(monkeypatch) -> None:
 
 
 def test_analyze_inspect_stream_returns_error_event_on_failure(monkeypatch) -> None:
-    def _raise_error(request, on_log=None, request_id=None) -> AnalyzeInspectResponse:
+    async def _raise_error(request, on_log=None, request_id=None) -> AnalyzeInspectResponse:
         _ = request
         _ = on_log
         _ = request_id

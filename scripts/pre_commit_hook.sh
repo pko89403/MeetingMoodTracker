@@ -14,7 +14,7 @@ else
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-cd "${REPO_ROOT}"
+cd "${REPO_ROOT}/backend"
 
 # pre-commit 훅 실행 시 PATH가 축소되는 환경을 대비해 uv 경로를 선반영한다.
 export PATH="$(dirname "${UV_BIN}"):${PATH}"
@@ -27,7 +27,8 @@ echo "========================================="
 
 # 단일 진입점: runner precommit 모드
 echo "[1/1] 🧭 Runner precommit 모드 실행..."
-"${UV_BIN}" run python harness/runner/agent_runner.py --mode precommit
+# 상위 워크스페이스 감지를 차단하기 위해 backend 디렉토리 내에서 독립적으로 실행되도록 UV_PROJECT_ENVIRONMENT를 설정한다.
+(cd "${REPO_ROOT}/backend" && "${UV_BIN}" run --project "${REPO_ROOT}/backend" python harness/runner/agent_runner.py --mode precommit)
 RUNNER_STATUS=$?
 
 if [ $RUNNER_STATUS -ne 0 ]; then

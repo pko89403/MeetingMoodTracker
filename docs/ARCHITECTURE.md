@@ -2,6 +2,7 @@
 
 ## System Diagram
 MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네스"를 통해 코딩 품질을 강제합니다.
+(참고: 백엔드 로직과 프론트엔드(`frontend/`)가 분리되어 있으며, 아래의 구조와 경로는 모두 `backend/` 디렉토리 내부를 기준으로 합니다.)
 
 ### 1. Harness Layer (에이전트 제어 및 검증)
 

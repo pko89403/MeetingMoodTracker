@@ -14,7 +14,7 @@ def _fail(msg: str) -> int:
 
 def main() -> int:
     """Manifest 필드/중복/경로/실파일 존재 여부를 검증한다."""
-    root_dir = Path(__file__).resolve().parent.parent
+    root_dir = Path(__file__).resolve().parent.parent.parent
     manifest_path = root_dir / ".agents" / "vendor" / "capability-manifest.json"
 
     if not manifest_path.exists():
