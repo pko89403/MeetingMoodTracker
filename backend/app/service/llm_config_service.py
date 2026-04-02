@@ -61,7 +61,7 @@ def get_llm_config(
             project_root=base_dir,
             app_env_raw=env_value,
         )
-    except (FileNotFoundError, ValueError) as exc:
+    except ValueError as exc:
         raise LlmConfigLoadError(str(exc)) from exc
 
     required_values = _extract_required_values(values=loaded_values)

@@ -1,5 +1,6 @@
 """`APP_ENV`에 맞는 env 파일을 선택하고 값을 로드하는 유틸리티."""
 
+import os
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -38,12 +39,18 @@ def resolve_env_file_path(project_root: Path, app_env: str) -> Path:
 def load_env_file_values(
     project_root: Path, app_env_raw: str | None
 ) -> dict[str, str | None]:
-    """선택된 env 파일을 읽어 키-값 매핑으로 반환한다."""
+    """선택된 env 파일을 읽거나, 파일이 없으면 os.environ에서 값을 반환한다.
+
+    우선순위:
+    1. {APP_ENV}.env 파일이 존재하면 해당 파일을 읽는다.
+    2. 파일이 없으면 os.environ 전체를 반환한다 (docker-compose env_file 주입 등).
+    """
     app_env = resolve_app_env(app_env_raw=app_env_raw)
     env_file_path = resolve_env_file_path(project_root=project_root, app_env=app_env)
 
-    if not env_file_path.exists():
-        raise FileNotFoundError(f"Environment file not found: {env_file_path}")
+    if env_file_path.exists():
+        loaded = dotenv_values(env_file_path)
+        return {str(key): value for key, value in loaded.items()}
 
-    loaded = dotenv_values(env_file_path)
-    return {str(key): value for key, value in loaded.items()}
+    # 파일 없음 → 환경변수 fallback (docker-compose env_file, 시스템 환경변수 등)
+    return dict(os.environ)

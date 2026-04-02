@@ -128,18 +128,41 @@ def test_get_llm_config_returns_422_when_only_legacy_llm_model_key_exists(
     ]
 
 
-def test_get_llm_config_returns_500_when_target_env_file_is_missing(
+def test_get_llm_config_returns_422_when_target_env_file_is_missing_and_no_env_vars(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
+    """파일도 없고 환경변수에도 필수 키 없으면 422(LLM_CONFIG_MISSING_KEY)를 반환한다."""
     monkeypatch.delenv("APP_ENV", raising=False)
+    for key in ("LLM_API_KEY", "LLM_ENDPOINT", "LLM_MODEL_NAME", "LLM_DEPLOYMENT_NAME"):
+        monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr("app.service.llm_config_service.get_project_root", lambda: tmp_path)
 
     response = client.get("/api/v1/env")
 
-    assert response.status_code == 500
-    assert response.json()["detail"]["error_code"] == "LLM_CONFIG_LOAD_FAILED"
-    assert "Environment file not found" in response.json()["detail"]["reason"]
+    assert response.status_code == 422
+    assert response.json()["detail"]["error_code"] == "LLM_CONFIG_MISSING_KEY"
+
+
+def test_get_llm_config_uses_env_vars_when_file_is_missing(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """파일 없을 때 os.environ에서 LLM 설정을 읽는다 (docker-compose env_file 주입 등)."""
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.setenv("LLM_API_KEY", "env-key-docker")
+    monkeypatch.setenv("LLM_ENDPOINT", "https://env.endpoint")
+    monkeypatch.setenv("LLM_MODEL_NAME", "gpt-5-mini")
+    monkeypatch.setenv("LLM_DEPLOYMENT_NAME", "gpt-5-mini")
+    monkeypatch.setattr("app.service.llm_config_service.get_project_root", lambda: tmp_path)
+
+    response = client.get("/api/v1/env")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["LLM_API_KEY"] == "env-key-docker"
+    assert body["LLM_ENDPOINT"] == "https://env.endpoint"
+    assert body["LLM_MODEL_NAME"] == "gpt-5-mini"
 
 
 def test_get_llm_config_returns_500_when_app_env_is_invalid(

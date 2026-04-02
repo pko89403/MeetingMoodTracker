@@ -12,6 +12,7 @@ services:
       - ./backend/dev.env
     environment:
       - FASTAPI_SERVER_PORT=8000
+      - APP_ENV=dev
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 30s
