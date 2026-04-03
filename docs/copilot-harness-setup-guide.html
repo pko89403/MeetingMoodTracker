@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeetingMoodTracker Copilot CLI Harness Setup Report</title>
+    <style>
+        :root {
+            --primary-color: #0969da;
+            --secondary-color: #f6f8fa;
+            --text-color: #24292f;
+            --border-color: #d0d7de;
+            --code-bg: #eff3f6;
+            --success-color: #2da44e;
+            --warning-color: #bf8700;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #ffffff;
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3em;
+        }
+        h2 {
+            font-size: 1.5em;
+            margin-top: 2.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3em;
+            color: #24292f;
+        }
+        h3 {
+            font-size: 1.2em;
+            margin-top: 1.5rem;
+            color: var(--primary-color);
+        }
+        p {
+            margin-bottom: 1rem;
+        }
+        .timeline {
+            position: relative;
+            max-width: 1200px;
+            margin: 2rem 0;
+            padding-left: 2rem;
+            border-left: 3px solid var(--border-color);
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2.65rem;
+            top: 0.2rem;
+            width: 1rem;
+            height: 1rem;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            border: 3px solid #fff;
+        }
+        .timeline-content {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .timeline-date {
+            font-size: 0.85em;
+            color: #57606a;
+            margin-bottom: 0.5rem;
+            display: block;
+            font-weight: 600;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+            font-size: 1.2em;
+            margin-bottom: 0.8rem;
+            color: var(--primary-color);
+        }
+        .icon {
+            margin-right: 8px;
+            font-size: 1.2em;
+        }
+        code {
+            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+            background-color: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 85%;
+        }
+        ul {
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+        li {
+            margin-bottom: 0.8rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.2em 0.5em;
+            font-size: 0.7em;
+            font-weight: 600;
+            border-radius: 2em;
+            background-color: #eaeef2;
+            color: #57606a;
+            margin-left: 8px;
+            vertical-align: text-bottom;
+        }
+        .badge.success { background-color: #dafbe1; color: #1a7f37; }
+        .badge.warning { background-color: #fff8c5; color: #9a6700; }
+        .badge.info { background-color: #ddf4ff; color: #0969da; }
+    </style>
+</head>
+<body>
+
+    <h1>🚀 Copilot CLI 하네스 구축 히스토리 리포트</h1>
+    <p>본 리포트는 <code>MeetingMoodTracker</code> 모노레포(FastAPI + React) 환경에 <strong>GitHub Copilot CLI</strong> 기반의 자율 에이전틱 워크플로우(Agentic Workflow) 하네스를 구축한 <strong>전체 작업 과정과 결과물</strong>을 상세히 기록합니다.</p>
+
+    <h2>⏱ 작업 타임라인 (하네스 구축 과정)</h2>
+    <div class="timeline">
+        
+        <div class="timeline-item">
+            <div class="timeline-content">
+                <span class="timeline-date">Step 1. 초기 전략 수립 및 워크트리 생성</span>
+                <p>기존 프로젝트의 안전한 변경을 위해 <code>branch-pr-workflow</code> 스킬을 활용하여 새로운 <strong>Git 워크트리(Worktree)</strong>와 격리된 브랜치(<code>codex/copilot-harness</code>)를 생성했습니다.</p>
+                <ul>
+                    <li><strong>경로:</strong> <code>~/.codex/worktrees/copilot-cli-harness/MeetingMoodTracker</code></li>
+                    <li>가상환경 분리 및 의존성 설치 스크립트 실행.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-content">
+                <span class="timeline-date">Step 2. 1차 시도 (커스텀 스크립트 작성) <span class="badge warning">폐기됨</span></span>
+                <p>처음에는 로컬 검증 도구(<code>agent_runner.py</code>)를 단순 래핑하는 커스텀 셸 스크립트(<code>run-linter.sh</code>, <code>run-tests.sh</code>)를 자체 제작하여 연동하려 했습니다.</p>
+                <p><strong>결과:</strong> 하지만 사용자 피드백을 통해 "직접 만드는 것보다 이미 외부(커뮤니티)에 잘 구현된 표준 규격을 가져오는 것이 맞다"는 판단을 내렸고, 작성했던 가짜(Custom) 폴더 구조를 모두 <strong>삭제(rm -rf) 및 폐기</strong>했습니다.</p>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-content">
+                <span class="timeline-date">Step 3. 공식 리포지토리 동기화 (Awesome-Copilot)</span>
+                <p>가장 최신의 검증된 표준을 적용하기 위해, 임시 경로에 <code>github/awesome-copilot</code> 공식 리포지토리를 <strong>클론(Clone)</strong>하고 내부의 600여 개 리소스 구조를 분석했습니다.</p>
+                <code>git clone https://github.com/github/awesome-copilot.git</code>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-content">
+                <span class="timeline-date">Step 4. 최종 하네스 이식 및 적용 <span class="badge success">완료</span></span>
+                <p>공식 리포지토리에서 <code>MeetingMoodTracker</code>의 기술 스택(Python/FastAPI, React/Vite)에 완벽히 호환되는 <strong>실제 도구들만 엄선하여 추출(Copy)</strong>한 뒤, 프로젝트 루트의 <code>.github/</code> 폴더에 공식 6단계 규격(Agents, Instructions, Skills, Hooks, Workflows, Plugins)으로 재배치했습니다.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <h2>📂 최종 적용된 공식 리소스 명세 (The Harness)</h2>
+    <p>현재 워크트리에 성공적으로 이식되어 <code>git add</code>된 <code>.github/</code> 내부 구조입니다. 이번엔 <strong>워크플로우(Workflows)와 플러그인(Plugins)</strong> 생태계 연동도 포함되었습니다.</p>
+
+    <div class="container">
+        <!-- 1. Agents -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🤖</span> Agents (에이전트)
+            </div>
+            <p>Copilot 세션에서 특정 지식과 권한을 가진 전문가 페르소나를 호출합니다.</p>
+            <ul>
+                <li><code>.github/agents/api-architect.agent.md</code>: 백엔드 OpenAPI 및 시스템 통합 아키텍트.</li>
+                <li><code>.github/agents/expert-react-frontend-engineer.agent.md</code>: React UI/UX 및 상태관리 최적화 엔지니어.</li>
+                <li><code>.github/agents/python-mcp-expert.agent.md</code>: Python 환경의 Model Context Protocol(MCP) 서버 구축 전문가.</li>
+            </ul>
+        </div>
+
+        <!-- 2. Instructions -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">📋</span> Instructions (지침서)
+            </div>
+            <p>파일 확장자에 따라 백그라운드에서 자동 로드되는 코딩 표준 규칙입니다.</p>
+            <ul>
+                <li><code>.github/instructions/python.instructions.md</code>: Python 파일 작성 시 FastAPI/Pydantic 규칙 준수.</li>
+                <li><code>.github/instructions/vitest.instructions.md</code>: 프론트엔드 TypeScript 작성 시 Vite 생태계 및 테스트 원칙 준수.</li>
+                <li><code>.github/instructions/code-review.instructions.md</code>: PR 및 코드 리뷰 시 범용 보안/OWASP 기준 점검.</li>
+            </ul>
+        </div>
+
+        <!-- 3. Skills -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🎯</span> Skills (스킬)
+            </div>
+            <p>AI 에이전트가 코드를 교정하거나, 사용자가 <code>/skill run [이름]</code>으로 실행할 수 있는 검증 도구입니다.</p>
+            <ul>
+                <li><code>.github/skills/ruff-recursive-fix/</code>: Python 코드의 오류와 포맷팅을 일괄 수정합니다.</li>
+                <li><code>.github/skills/pytest-coverage/</code>: 백엔드 테스트를 실행하고 커버리지 리포트를 생성합니다.</li>
+                <li><code>.github/skills/javascript-typescript-jest/</code>: 프론트엔드 컴포넌트의 테스트 환경을 연동합니다.</li>
+                <li><code>.github/skills/playwright-generate-test/</code>: E2E 테스트 시나리오 초안을 자동 생성합니다.</li>
+                <li><code>.github/skills/conventional-commit/</code>: 표준화된 양식으로 커밋 메시지를 작성합니다.</li>
+            </ul>
+        </div>
+
+        <!-- 4. Hooks -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🪝</span> Hooks (훅)
+            </div>
+            <p>Copilot CLI 세션에서 보안과 규정 준수를 위해 백그라운드에서 자동 실행됩니다.</p>
+            <ul>
+                <li><code>.github/hooks/secrets-scanner/</code>: 소스 코드나 프롬프트에 하드코딩된 API Key 등 민감 정보 유출을 차단합니다.</li>
+                <li><code>.github/hooks/dependency-license-checker/</code>: 새로 추가되는 라이브러리의 라이선스 충돌 여부를 검사합니다.</li>
+                <li><code>.github/hooks/session-logger/</code>: 감사(Audit) 목적으로 AI와의 대화/프롬프트 내역을 안전하게 로깅합니다.</li>
+            </ul>
+        </div>
+
+        <!-- 5. Workflows -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">⚡</span> Agentic Workflows (워크플로우) <span class="badge info">New</span>
+            </div>
+            <p>Markdown 기반으로 작성되어, GitHub Actions 등 CI 파이프라인에서 AI가 주도적으로 수행하는 자동화 프로세스입니다.</p>
+            <ul>
+                <li><code>.github/workflows/daily-issues-report.md</code>: 매일 자정에 저장소의 이슈들을 요약 및 분석하여 보고서를 자동 생성하는 워크플로우.</li>
+                <li><code>.github/workflows/ospo-release-compliance-checker.md</code>: 릴리즈(배포) 전 오픈소스 컴플라이언스(라이선스 등)를 AI가 검수하는 워크플로우.</li>
+            </ul>
+        </div>
+
+        <!-- 6. Plugins -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🔌</span> Plugins (플러그인 생태계) <span class="badge info">New</span>
+            </div>
+            <p>개별 파일들을 일일이 복사할 필요 없이, 도메인별 <strong>Agent/Skill 번들</strong>을 Copilot CLI 환경에서 명령어로 즉시 설치할 수 있는 생태계입니다.</p>
+            <ul>
+                <li><strong>FastAPI 플러그인:</strong> <code>copilot plugin install openapi-to-application-python-fastapi@awesome-copilot</code><br><small>→ OpenAPI 명세서로 FastAPI 애플리케이션 코드를 자동 생성하고 검증하는 번들</small></li>
+                <li><strong>React 프론트엔드 플러그인:</strong> <code>copilot plugin install frontend-web-dev@awesome-copilot</code><br><small>→ React/TypeScript/Vite 전문가 에이전트와 Playwright 테스트 스킬 번들</small></li>
+                <li><em>플러그인은 로컬 폴더에 묶이지 않고, CLI 설치 명령어를 통해 필요할 때마다 전역/로컬로 주입됩니다.</em></li>
+            </ul>
+        </div>
+
+    </div>
+
+    <p style="margin-top: 2rem; font-size: 0.9em; color: #586069; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+        <em>이 문서는 개발자가 전체 하네스 구축 과정을 추적하고 검증하기 위해 동적으로 생성되었습니다.</em>
+    </p>
+
+</body>
+</html>
