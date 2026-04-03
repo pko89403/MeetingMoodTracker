@@ -123,6 +123,9 @@ async def test_get_meeting_overview_aggregates_topics_and_scores(monkeypatch, tm
     assert overview.sentiment.neutral.confidence == 0
     assert overview.emotions.joy.confidence == 45
     assert overview.signals.urgency.confidence == 68
+    assert overview.rubric.dominance == 63
+    assert overview.rubric.efficiency == 78
+    assert overview.rubric.cohesion == 66
     assert overview.one_line_summary == "2개 발화에서 배포 일정, QA 리스크 중심으로 논의가 진행됐습니다."
 
 
@@ -230,6 +233,14 @@ def test_get_meeting_turns_returns_sorted_turns(tmp_path) -> None:
 
     assert response.total_count == 2
     assert [turn.turn_id for turn in response.turns] == ["turn-001", "turn-002"]
+    assert response.turns[0].rubric is not None
+    assert response.turns[0].rubric.dominance == 59
+    assert response.turns[0].rubric.efficiency == 60
+    assert response.turns[0].rubric.cohesion == 78
+    assert response.turns[1].rubric is not None
+    assert response.turns[1].rubric.dominance == 55
+    assert response.turns[1].rubric.efficiency == 69
+    assert response.turns[1].rubric.cohesion == 40
 
 
 @pytest.mark.asyncio

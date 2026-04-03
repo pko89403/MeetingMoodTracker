@@ -4,13 +4,19 @@ import math
 from collections import defaultdict
 
 from app.repo.meeting_storage import JsonTurnAnalysisRepository, TurnAnalysisRepository
-from app.service.analyze_service import AnalyzeInferenceError, extract_meeting_topics
+from app.service.analyze_service import (
+    AnalyzeInferenceError,
+    calculate_final_rubrics,
+    extract_meeting_topics,
+)
+from app.service.rubric_service import ensure_turn_rubric
 from app.types.emotion import (
     BASE_EMOTION_LABELS,
     EmotionConfidenceValue,
     EmotionScores,
     MeetingSignalConfidenceValue,
     MeetingSignals,
+    TurnEmotionResponse,
 )
 from app.types.identifiers import normalize_storage_segment
 from app.types.mood import AnalyzeSentiment, SentimentConfidence
@@ -258,11 +264,12 @@ def get_meeting_turns(
         meeting_id=normalized_meeting_id,
         repository=resolved_repository,
     )
+    hydrated_turns = [ensure_turn_rubric(turn) for turn in turns]
     return MeetingTurnsResponse(
         project_id=normalized_project_id,
         meeting_id=normalized_meeting_id,
-        total_count=len(turns),
-        turns=turns,
+        total_count=len(hydrated_turns),
+        turns=hydrated_turns,
     )
 
 
@@ -345,6 +352,19 @@ async def get_meeting_overview(
         except AnalyzeInferenceError as exc:
             raise MeetingReadInferenceError(stage=exc.stage, message=str(exc)) from exc
 
+    sentiment = _aggregate_sentiment(turns=turns)
+    emotions = _aggregate_emotions(turns=turns)
+    signals = _aggregate_signals(turns=turns)
+    rubric = calculate_final_rubrics(
+        topics=topics,
+        sentiment=sentiment,
+        emotion=TurnEmotionResponse(
+            emotions=emotions,
+            meeting_signals=signals,
+            emerging_emotions=[],
+        ),
+    )
+
     return MeetingOverviewResponse(
         project_id=normalized_project_id,
         meeting_id=normalized_meeting_id,
@@ -353,9 +373,10 @@ async def get_meeting_overview(
         turn_count=meeting_meta.turn_count,
         agent_count=len(meeting_meta.agent_ids),
         topics=topics,
-        sentiment=_aggregate_sentiment(turns=turns),
-        emotions=_aggregate_emotions(turns=turns),
-        signals=_aggregate_signals(turns=turns),
+        sentiment=sentiment,
+        emotions=emotions,
+        signals=signals,
+        rubric=rubric,
         one_line_summary=_build_overview_summary(
             turn_count=meeting_meta.turn_count,
             topics=topics,
