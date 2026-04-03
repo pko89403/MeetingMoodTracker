@@ -11,6 +11,7 @@ from app.types.emotion import (
     MeetingSignals,
     TurnEmotionResponse,
 )
+from app.types.mood import MeetingRubrics
 from app.types.sentiment import TurnSentimentResponse
 from app.types.storage import TurnAnalysisRecord, TurnIngestRequest
 
@@ -97,6 +98,11 @@ async def test_store_turn_analysis_persists_project_aware_record(monkeypatch) ->
     assert result.turn_id == "turn-001"
     assert result.order == 1
     assert result.updated_at != ""
+    assert result.rubric == MeetingRubrics(
+        dominance=64,
+        efficiency=63,
+        cohesion=83,
+    )
     assert fake_repository.saved_record == result
     assert captured_requests["sentiment"].agent_id == "alice"
     assert captured_requests["emotion"].agent_id == "alice"

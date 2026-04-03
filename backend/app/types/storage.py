@@ -16,7 +16,7 @@ from app.types.identifiers import (
     normalize_required_identifier,
     normalize_storage_segment,
 )
-from app.types.mood import AnalyzeSentiment
+from app.types.mood import AnalyzeSentiment, MeetingRubrics
 from app.types.sentiment import TurnSentimentResponse
 
 
@@ -127,6 +127,7 @@ class TurnAnalysis(BaseModel):
 
     sentiment: TurnSentimentResponse
     emotion: TurnEmotionResponse
+    rubric: MeetingRubrics | None = Field(default=None)
 
 
 class TurnAnalysisRecord(Turn):
@@ -135,6 +136,7 @@ class TurnAnalysisRecord(Turn):
     updated_at: str = Field(min_length=1)
     sentiment: TurnSentimentResponse
     emotion: TurnEmotionResponse
+    rubric: MeetingRubrics | None = Field(default=None)
 
 
 class AgentAggregate(BaseModel):
@@ -174,6 +176,7 @@ class MeetingOverviewResponse(BaseModel):
     sentiment: AnalyzeSentiment
     emotions: EmotionScores
     signals: MeetingSignals
+    rubric: MeetingRubrics
     one_line_summary: str | None = Field(default=None)
 
 

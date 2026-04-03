@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from app.repo.meeting_storage import JsonTurnAnalysisRepository, TurnAnalysisRepository
 from app.service.emotion_service import EmotionInferenceError, classify_turn_emotion
+from app.service.rubric_service import calculate_turn_rubric
 from app.service.sentiment_service import (
     SentimentInferenceError,
     classify_turn_sentiment,
@@ -79,6 +80,10 @@ async def store_turn_analysis(
         order=request.order,
         sentiment=sentiment,
         emotion=emotion,
+        rubric=calculate_turn_rubric(
+            sentiment=sentiment,
+            emotion=emotion,
+        ),
     )
     resolved_repository = repository or JsonTurnAnalysisRepository()
     return resolved_repository.upsert_turn_analysis(record=record)

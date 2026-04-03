@@ -1,44 +1,63 @@
 import React from "react";
-import { Clock, Hash, CheckCircle, Tag } from "lucide-react";
-import { MeetingSummary } from "../../mockData";
+import { Clock3, FolderKanban, RefreshCcw } from "lucide-react";
+import { MeetingSummary } from "../../lib/meetingDashboard";
 
 interface HeaderProps {
-  summary: MeetingSummary;
+  projectId: string;
+  meetingId: string;
+  summary: MeetingSummary | null;
+  onReset: () => void;
 }
 
-export function Header({ summary }: HeaderProps) {
+export function Header({ projectId, meetingId, summary, onReset }: HeaderProps) {
   return (
-    <header className="bg-white border-b border-slate-300 px-6 py-3 flex flex-col md:flex-row md:items-center justify-between sticky top-0 z-20">
-      <div className="flex flex-col mb-2 md:mb-0">
-        <div className="flex items-center space-x-3 mb-1">
-          <h1 className="text-lg font-bold text-slate-800 flex items-center">
-            {summary.title}
-          </h1>
-          <span className="px-2 py-0.5 rounded-sm text-[11px] font-bold bg-emerald-50 text-emerald-700 flex items-center gap-1 border border-emerald-200 uppercase tracking-wider">
-            <CheckCircle size={10} />
-            {summary.status}
-          </span>
-        </div>
-        <div className="text-[11px] text-slate-500 font-medium font-mono flex items-center space-x-2 uppercase tracking-wide">
-          <Hash size={12} className="text-slate-400" />
-          <span>{summary.meetingId}</span>
-          <span className="text-slate-300">|</span>
-          <Clock size={12} className="text-slate-400" />
-          <span>Updated: {new Date(summary.lastUpdated).toLocaleDateString()}</span>
-        </div>
-      </div>
+    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+      <div className="mx-auto max-w-[1400px] px-4 py-4 lg:px-6">
+        <div className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-[linear-gradient(135deg,_rgba(15,23,42,1)_0%,_rgba(49,46,129,0.95)_52%,_rgba(79,70,229,0.82)_100%)] px-6 py-6 text-white shadow-[0_24px_70px_-32px_rgba(30,41,59,0.75)]">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold tracking-wide text-indigo-50">
+                  Meeting mood dashboard
+                </span>
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-100">
+                  Read API connected
+                </span>
+              </div>
 
-      <div className="flex flex-col md:items-end space-y-2">
-        <div className="flex flex-wrap gap-1.5 justify-end">
-          {summary.topics.map((topic, i) => (
-            <div
-              key={i}
-              className="flex items-center space-x-1 px-2 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-sm text-[10px] font-bold uppercase tracking-wider"
-            >
-              <Tag size={10} className="text-slate-400" />
-              <span>{topic}</span>
+              <h1 className="truncate text-2xl font-bold tracking-tight text-white lg:text-[2rem]">
+                {summary?.title ?? `Meeting ${meetingId}`}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100/85">
+                프로젝트 단위 회의 데이터를 읽어 summary, turn timeline, agent pattern을 한 화면에서 탐색합니다.
+              </p>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-indigo-50">
+                  <FolderKanban size={14} className="text-indigo-100" />
+                  {projectId}
+                </span>
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-indigo-50">
+                  {meetingId}
+                </span>
+                {summary?.lastUpdated && (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-indigo-50">
+                    <Clock3 size={14} className="text-indigo-100" />
+                    {new Date(summary.lastUpdated).toLocaleString()}
+                  </span>
+                )}
+              </div>
             </div>
-          ))}
+
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex items-center justify-center gap-2 self-start rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+            >
+              <RefreshCcw size={14} />
+              다른 회의 열기
+            </button>
+          </div>
         </div>
       </div>
     </header>
