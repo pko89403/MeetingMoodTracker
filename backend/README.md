@@ -55,6 +55,85 @@ curl http://localhost:8000/healthz
   - `label`: `POS`, `NEG`, `NEUTRAL` 중 하나
   - `confidence`: 신뢰도 (`0.0 ~ 1.0`)
 
+### 3. 프로젝트 인지 턴 저장 (Project-aware Turn Storage)
+프로젝트/회의 경로 아래 개별 발화를 분석하고 저장하는 엔드포인트입니다.
+
+- **Endpoint**: `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+- **Request**:
+  ```json
+  {
+    "agent_id": "agent_facilitator",
+    "turn_id": "t_014",
+    "utterance_text": "배포 전에 QA 리스크를 먼저 정리하고 대응 순서를 확정합시다.",
+    "order": 14
+  }
+  ```
+- **Response Example**:
+  ```json
+  {
+    "project_id": "proj_alpha",
+    "meeting_id": "m_20260401_001",
+    "agent_id": "agent_facilitator",
+    "turn_id": "t_014",
+    "created_at": "2026-04-03T09:30:00Z",
+    "updated_at": "2026-04-03T09:30:00Z",
+    "utterance_text": "배포 전에 QA 리스크를 먼저 정리하고 대응 순서를 확정합시다.",
+    "order": 14,
+    "sentiment": {
+      "label": "NEUTRAL",
+      "confidence": 0.82,
+      "evidence": "QA 리스크"
+    },
+    "emotion": {
+      "emotions": {
+        "neutral": { "confidence": 52 },
+        "anxiety": { "confidence": 21 },
+        "frustration": { "confidence": 9 },
+        "anger": { "confidence": 0 },
+        "joy": { "confidence": 3 },
+        "sadness": { "confidence": 2 },
+        "excitement": { "confidence": 4 },
+        "confusion": { "confidence": 9 }
+      },
+      "meeting_signals": {
+        "urgency": { "confidence": 78 },
+        "clarity": { "confidence": 64 },
+        "alignment": { "confidence": 55 },
+        "tension": { "confidence": 28 },
+        "engagement": { "confidence": 61 }
+      },
+      "emerging_emotions": []
+    }
+  }
+  ```
+- **안정 계약(Stable Contract)**:
+  - canonical 식별자는 `project_id + meeting_id + agent_id + turn_id` 조합입니다.
+  - `agent_id`가 비어 있으면 API 응답에서는 `null`을 유지하고, 저장 경로에서는 예약 버킷 `__unassigned__`로 안전하게 분리합니다.
+  - 응답은 최소한 식별자, `created_at`/`updated_at`, 그리고 분석 결과 축(`sentiment`, `emotion`)을 포함합니다.
+  - 동일한 `project_id + meeting_id + agent_id + turn_id` 재전송은 **upsert/idempotent** 정책으로 처리됩니다.
+
+### 4. JSON 저장 구조
+issue #26의 1차 저장 전략은 DB가 아닌 JSON 파일 기반 계층 저장입니다.
+
+```text
+data/
+  projects/
+    {project_id}/
+      meta.json
+      meetings/
+        {meeting_id}/
+          meta.json
+          agents/
+            {agent_id}/
+              turns.json
+          aggregates.json   # 선택
+```
+
+- `project_id -> meeting_id -> agent_id -> turn_id` 계층을 canonical 저장 모델로 사용합니다.
+- `meta.json`은 project/meeting 수준 메타데이터를 담고, `turns.json`은 agent별 raw turn 및 turn analysis 컬렉션을 담습니다.
+- `aggregates.json`은 선택 파일이며, 없는 경우에도 raw turn을 기준으로 재계산 가능해야 합니다.
+- 중복/재전송 정책의 기준은 파일명보다 **`project_id + meeting_id + agent_id + turn_id`** 조합입니다.
+
 ---
 
 ## 📊 분석 항목 상세 정의 (Analysis Items)
@@ -119,7 +198,7 @@ API를 직접 호출하지 않고 웹 화면에서 텍스트를 분석하고 결
 - **실행**: `./scripts/run_ui.sh` (기본 포트: 8501)
 - **주요 기능**:
   - 분석 로그 실시간 스트리밍 (SSE)
-  - 분석 히스토리 저장 및 재조회
+  - 세션 내 분석 히스토리 저장 및 재조회 (브라우저 세션 메모리 기반)
   - 감정 분포 차트 시각화
 
 ---
@@ -143,6 +222,18 @@ API를 직접 호출하지 않고 웹 화면에서 텍스트를 분석하고 결
 - **Worktree Setup**: `./scripts/setup_worktree.sh`
 - **Issue Sync**: `uv run python scripts/sync_feature_issues.py`
 - **Offline Evaluation**: `scripts/evaluate_sentiment_with_judge.py`
+
+### 4. 저장 모델 로드맵 (Issue #26)
+- 영속 저장의 canonical 식별자는 `project_id -> meeting_id -> agent_id -> turn_id` 계층입니다.
+- 저장소 책임은 `app/repo/` 레이어에 배치하며, 초기 구현은 JSON 파일 기반 repository를 기준으로 설계합니다.
+- JSON 경로 초안:
+  - `data/projects/{project_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/agents/{agent_id}/turns.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/aggregates.json` (선택)
+- 기본 정책은 **raw turn result 우선 보존 + aggregate는 조회 시 계산**입니다.
+- 현재 공개된 project-aware 저장 경로는 `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`입니다.
+- `POST /api/v1/analyze`, `POST /api/v1/sentiment/turn` 요청 본문은 아직 `meeting_id` 중심이지만, turn 계열 request는 canonical 명칭 `agent_id`를 우선 사용하고 `speaker_id`는 호환 입력(alias)로만 허용합니다.
 
 ---
 

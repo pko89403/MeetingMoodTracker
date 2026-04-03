@@ -31,7 +31,7 @@ def test_turn_sentiment_endpoint_success_with_mixed_language(monkeypatch) -> Non
         json={
             "meeting_id": "m_001",
             "turn_id": "t_001",
-            "speaker_id": "alice",
+            "agent_id": "alice",
             "utterance_text": "좋은 접근 같아요, let's proceed.",
         },
     )
@@ -50,12 +50,42 @@ def test_turn_sentiment_endpoint_returns_422_on_empty_utterance() -> None:
         json={
             "meeting_id": "m_001",
             "turn_id": "t_001",
-            "speaker_id": "alice",
+            "agent_id": "alice",
             "utterance_text": "",
         },
     )
 
     assert response.status_code == 422
+
+
+def test_turn_sentiment_endpoint_normalizes_blank_legacy_speaker_id(monkeypatch) -> None:
+    def _fake_classify_turn_sentiment(
+        request,
+    ) -> TurnSentimentResponse:
+        assert request.agent_id is None
+        return TurnSentimentResponse(
+            label="NEUTRAL",
+            confidence=0.61,
+            evidence="화자가 지정되지 않았습니다.",
+        )
+
+    monkeypatch.setattr(
+        sentiment_runtime,
+        "classify_turn_sentiment",
+        _fake_classify_turn_sentiment,
+    )
+
+    response = client.post(
+        "/api/v1/sentiment/turn",
+        json={
+            "meeting_id": "m_001",
+            "turn_id": "t_001",
+            "speaker_id": "   ",
+            "utterance_text": "담당자 미정 상태입니다.",
+        },
+    )
+
+    assert response.status_code == 200
 
 
 def test_turn_sentiment_endpoint_returns_502_on_inference_failure(
@@ -76,7 +106,7 @@ def test_turn_sentiment_endpoint_returns_502_on_inference_failure(
         json={
             "meeting_id": "m_001",
             "turn_id": "t_001",
-            "speaker_id": "alice",
+            "agent_id": "alice",
             "utterance_text": "이건 별로예요.",
         },
     )

@@ -22,6 +22,33 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
 - **`app/ui/`**: (최상위) 프론트엔드 연동 및 템플릿 서빙
 - **`app/main.py`**: 단지 서버를 구동(Boot)하는 진입점 모듈
 
+### Project-aware Storage Layer (Issue #26)
+
+- `app/repo/`는 영속 저장의 단일 진입점으로 두고, runtime/service/ui가 파일 경로를 직접 다루지 않도록 유지합니다.
+- 저장 계층의 canonical 식별자는 **`project_id -> meeting_id -> agent_id -> turn_id`** 입니다.
+- 초기 저장 전략은 JSON repository이며, 후속 SQLite/외부 DB 교체를 위해 repo interface를 먼저 고정합니다.
+- JSON 구조 초안:
+  - `data/projects/{project_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/agents/{agent_id}/turns.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/aggregates.json` (선택)
+- 기본 저장 정책은 **agent별 raw turn/analysis 보존**이며, aggregate는 선택 저장 또는 조회 시 계산을 우선합니다.
+- idempotency/upsert 기준도 `project_id + meeting_id + agent_id + turn_id` 조합을 기준으로 정의합니다.
+- project-aware 턴 저장 엔드포인트가 도입되면 runtime/service/repo 흐름도 동일한 canonical key를 공유해야 합니다.
+- 저장 레이아웃 설명은 `data/projects/{project_id}/meetings/{meeting_id}/agents/{agent_id}/turns.json` 구조를 기준으로 유지하고, `aggregates.json`은 선택 항목으로 둡니다.
+
+### Project-aware Turn Storage Flow
+
+- `app/runtime/meeting_turns.py`의 `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`가 project-aware 저장 진입점입니다.
+- `app/service/turn_ingest_service.py`가 turn sentiment/emotion 추론을 병렬 실행하고 `TurnAnalysisRecord`를 조합합니다.
+- `app/repo/meeting_storage.py`가 JSON 저장소의 책임을 가지며 아래 경로를 관리합니다.
+  - `data/projects/{project_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/agents/{agent_id}/turns.json`
+- 저장소의 idempotency key는 `project_id + meeting_id + agent_id + turn_id`입니다.
+- `agent_id`가 비어 있는 경우 API/서비스 경계에서는 `None`을 유지하고, 저장 경로 버킷에서만 예약 식별자 `__unassigned__`를 사용합니다.
+- aggregate는 아직 선택 사항이며, 1차 구현은 raw turn result 보존과 meta 갱신에 집중합니다.
+
 ### LLM Config Read Flow
 
 - `app/runtime/env_config.py`의 `GET /api/env/v1` 라우트가 진입점입니다.
@@ -63,6 +90,7 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
   - 공통 파이프라인 결과를 `start -> log* -> result -> done` SSE 이벤트로 변환해 전달합니다.
 - analyze 실행 로그는 서비스 레이어의 메모리 링버퍼(`maxlen=200`)에도 저장됩니다.
 - Streamlit UI(`app/ui/analyze_console.py`)는 기본적으로 SSE 경로를 사용하고, 실패 시 REST inspect 경로로 폴백합니다.
+- 위 메모리 링버퍼와 Streamlit 세션 히스토리는 **디버그/세션 상태용 임시 저장**이며, issue #26의 영속 저장소를 대체하지 않습니다.
 
 ## Dependency Rules (단방향 헌법)
 

@@ -82,11 +82,11 @@ def _build_system_prompt() -> str:
 
 def _build_user_prompt(request: TurnSentimentRequest) -> str:
     """요청 필드를 일관된 포맷의 사용자 프롬프트 문자열로 변환한다."""
-    speaker_text = request.speaker_id if request.speaker_id is not None else "N/A"
+    agent_text = request.agent_id if request.agent_id is not None else "N/A"
     return (
         f"meeting_id={request.meeting_id}\n"
         f"turn_id={request.turn_id}\n"
-        f"speaker_id={speaker_text}\n"
+        f"agent_id={agent_text}\n"
         "utterance:\n"
         f"{request.utterance_text}"
     )

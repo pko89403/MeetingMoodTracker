@@ -69,7 +69,7 @@ def _sample_request() -> TurnSentimentRequest:
     return TurnSentimentRequest(
         meeting_id="m_001",
         turn_id="t_001",
-        speaker_id="alice",
+        agent_id="alice",
         utterance_text="좋아요. this looks good.",
     )
 

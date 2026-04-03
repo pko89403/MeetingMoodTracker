@@ -159,7 +159,7 @@ def _build_analyze_turn_emotion_request(
     return TurnEmotionRequest(
         meeting_id=meeting_id or "analyze_meeting",
         turn_id="analyze_turn",
-        speaker_id=None,
+        agent_id=None,
         utterance_text=original_text,
     )
 
