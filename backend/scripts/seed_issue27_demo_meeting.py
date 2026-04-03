@@ -294,6 +294,10 @@ def _build_agent_documents(
     documents: list[AgentTurnsDocument] = []
     for agent_id in FIXTURE_AGENT_IDS:
         agent_turns = grouped_turns[agent_id]
+        if not agent_turns:
+            raise ValueError(
+                f"FIXTURE_AGENT_IDS contains '{agent_id}' but FIXTURE_TURNS has no turns for it."
+            )
         updated_at = agent_turns[-1].updated_at
         documents.append(
             AgentTurnsDocument(
