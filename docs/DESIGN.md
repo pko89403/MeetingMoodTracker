@@ -45,6 +45,33 @@
   - 오류 응답 상세:
     - `detail.error_code` + `message_ko` + `message_en` + 상황별 부가 필드(`missing_keys`, `reason`)
 
+## Project-aware 저장 모델 방향 (Issue #26)
+
+- 저장 도메인 경계는 `Project`, `Meeting`, `Turn`, `TurnAnalysis`, `MeetingAggregate`, `AgentAggregate` 기준으로 분리합니다.
+- 영속 저장 식별자의 canonical 조합은 **`project_id + meeting_id + agent_id + turn_id`** 입니다.
+- 저장소 구현은 `app/repo/` 레이어의 interface 뒤에 숨기고, 초기 전략은 JSON 파일 기반으로 둡니다.
+- JSON 구조 초안:
+  - `data/projects/{project_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/agents/{agent_id}/turns.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/aggregates.json` (선택)
+- 기본 정책은 raw turn result를 우선 보존하고, aggregate는 조회 시 계산을 기본값으로 둡니다.
+
+### 계약 정렬 메모
+
+- 현재 backend 요청 타입은 아직 `project_id`를 받지 않습니다.
+- `speaker_id`가 일부 타입에 남아 있으며, 저장 모델 기준 canonical 명칭은 `agent_id`입니다.
+- 따라서 issue #26 문서는 **저장 계층의 목표 계약**을 먼저 고정하고, 실제 request/response 타입 전환은 후속 구현 이슈와 함께 정렬합니다.
+
+### 예정 엔드포인트 (아직 미구현)
+
+- `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+  - 역할: 턴 수집 + 분석 + 저장을 하나의 API에서 처리
+  - 요청 초안: `{ agent_id: str | None, turn_id: str, utterance_text: str, order: int | None }`
+  - 응답 초안: 저장된 turn analysis record (`project_id`, `meeting_id`, `agent_id`, `turn_id`, `created_at`, 분석 결과 필드 포함)
+  - 안정 계약: 식별자(`project_id`, `meeting_id`, `agent_id`, `turn_id`)와 분석 결과 축(`sentiment`, `emotions`, `signals`)은 유지하되 세부 필드는 구현에 따라 확장될 수 있습니다.
+  - 저장 레이아웃은 `project_id -> meeting_id -> agent_id -> turns.json` 계층을 따르며, `aggregates.json`은 선택 저장으로 둡니다.
+
 ## Analyze 알고리즘 일관성 규칙
 
 - `/api/v1/analyze`, `/api/v1/analyze/inspect`, `/api/v1/analyze/inspect/stream`는 반드시 동일한 서비스 메서드(`run_analyze_pipeline`)를 호출해야 합니다.

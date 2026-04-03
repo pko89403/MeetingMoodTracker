@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 SentimentLabel = Literal["POS", "NEG", "NEUTRAL"]
 
@@ -15,7 +15,7 @@ class TurnSentimentRequest(BaseModel):
             "example": {
                 "meeting_id": "m_20260401_003",
                 "turn_id": "t_021",
-                "speaker_id": "bob",
+                "agent_id": "bob",
                 "utterance_text": "이 접근은 좋아요. But we need tighter QA before release.",
             }
         }
@@ -23,8 +23,23 @@ class TurnSentimentRequest(BaseModel):
 
     meeting_id: str = Field(min_length=1)
     turn_id: str = Field(min_length=1)
-    speaker_id: str | None = None
+    agent_id: str | None = Field(
+        default=None,
+        min_length=1,
+        validation_alias=AliasChoices("agent_id", "speaker_id"),
+    )
     utterance_text: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("agent_id")
+    @classmethod
+    def normalize_agent_id(cls, value: str | None) -> str | None:
+        """레거시 speaker_id 입력도 agent_id 규칙으로 정규화한다."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        if normalized == "":
+            return None
+        return normalized
 
 
 class TurnSentimentResponse(BaseModel):

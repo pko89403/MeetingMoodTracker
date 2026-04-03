@@ -11,6 +11,7 @@ class AnalyzeRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "project_id": "proj_alpha",
                 "meeting_id": "m_20260401_002",
                 "text": (
                     "배포 일정이 다시 미뤄졌습니다. "
@@ -20,6 +21,7 @@ class AnalyzeRequest(BaseModel):
         }
     )
 
+    project_id: str | None = Field(default=None, min_length=1)
     meeting_id: str
     text: str
 

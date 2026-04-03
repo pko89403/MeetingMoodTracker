@@ -31,7 +31,7 @@ def test_turn_sentiment_endpoint_success_with_mixed_language(monkeypatch) -> Non
         json={
             "meeting_id": "m_001",
             "turn_id": "t_001",
-            "speaker_id": "alice",
+            "agent_id": "alice",
             "utterance_text": "좋은 접근 같아요, let's proceed.",
         },
     )
@@ -50,7 +50,7 @@ def test_turn_sentiment_endpoint_returns_422_on_empty_utterance() -> None:
         json={
             "meeting_id": "m_001",
             "turn_id": "t_001",
-            "speaker_id": "alice",
+            "agent_id": "alice",
             "utterance_text": "",
         },
     )
@@ -76,7 +76,7 @@ def test_turn_sentiment_endpoint_returns_502_on_inference_failure(
         json={
             "meeting_id": "m_001",
             "turn_id": "t_001",
-            "speaker_id": "alice",
+            "agent_id": "alice",
             "utterance_text": "이건 별로예요.",
         },
     )
