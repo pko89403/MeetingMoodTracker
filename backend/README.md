@@ -134,6 +134,174 @@ data/
 - `aggregates.json`은 선택 파일이며, 없는 경우에도 raw turn을 기준으로 재계산 가능해야 합니다.
 - 중복/재전송 정책의 기준은 파일명보다 **`project_id + meeting_id + agent_id + turn_id`** 조합입니다.
 
+### 5. 회의 overview 조회 (Project-aware Meeting Overview)
+저장된 턴 분석 결과를 바탕으로 회의 개요/집계를 조회합니다.
+
+- **Endpoint**: `GET /api/v1/projects/{project_id}/meetings/{meeting_id}`
+- **Response Example**:
+  ```json
+  {
+    "project_id": "proj_alpha",
+    "meeting_id": "m_20260401_001",
+    "created_at": "2026-04-03T09:30:00Z",
+    "updated_at": "2026-04-03T09:35:00Z",
+    "turn_count": 12,
+    "agent_count": 3,
+    "topics": ["배포 일정", "QA 리스크"],
+    "sentiment": {
+      "positive": { "confidence": 48 },
+      "negative": { "confidence": 22 },
+      "neutral": { "confidence": 30 }
+    },
+    "emotions": {
+      "joy": { "confidence": 34 },
+      "neutral": { "confidence": 28 },
+      "anxiety": { "confidence": 18 },
+      "frustration": { "confidence": 9 },
+      "excitement": { "confidence": 4 },
+      "confusion": { "confidence": 4 },
+      "anger": { "confidence": 2 },
+      "sadness": { "confidence": 1 }
+    },
+    "signals": {
+      "alignment": { "confidence": 71 },
+      "urgency": { "confidence": 63 },
+      "clarity": { "confidence": 66 },
+      "engagement": { "confidence": 69 },
+      "tension": { "confidence": 24 }
+    },
+    "one_line_summary": "12개 발화에서 배포 일정, QA 리스크 중심으로 논의가 진행됐습니다."
+  }
+  ```
+- **특이사항**:
+  - `topics`는 저장된 turn transcript를 순서대로 합쳐 **조회 시 계산(on-read)** 합니다.
+  - overview 응답은 full turn payload를 포함하지 않고, overview 카드에 필요한 aggregate만 반환합니다.
+  - topic aggregate 계산에 실패하면 `502` (`MEETING_READ_LLM_FAILURE`)를 반환합니다.
+
+### 6. 발화 목록 조회 (Meeting Turns)
+회의 timeline/detail 패널에 필요한 정렬된 턴 목록을 반환합니다.
+
+- **Endpoint**: `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+- **Response Example**:
+  ```json
+  {
+    "project_id": "proj_alpha",
+    "meeting_id": "m_20260401_001",
+    "total_count": 2,
+    "turns": [
+      {
+        "project_id": "proj_alpha",
+        "meeting_id": "m_20260401_001",
+        "agent_id": "agent_facilitator",
+        "turn_id": "t_014",
+        "utterance_text": "배포 전에 QA 리스크를 먼저 정리하고 대응 순서를 확정합시다.",
+        "created_at": "2026-04-03T09:30:00Z",
+        "updated_at": "2026-04-03T09:30:00Z",
+        "order": 14,
+        "sentiment": {
+          "label": "NEUTRAL",
+          "confidence": 0.82,
+          "evidence": "QA 리스크"
+        },
+        "emotion": {
+          "emotions": {
+            "neutral": { "confidence": 52 },
+            "anxiety": { "confidence": 21 },
+            "frustration": { "confidence": 9 },
+            "anger": { "confidence": 0 },
+            "joy": { "confidence": 3 },
+            "sadness": { "confidence": 2 },
+            "excitement": { "confidence": 4 },
+            "confusion": { "confidence": 9 }
+          },
+          "meeting_signals": {
+            "urgency": { "confidence": 78 },
+            "clarity": { "confidence": 64 },
+            "alignment": { "confidence": 55 },
+            "tension": { "confidence": 28 },
+            "engagement": { "confidence": 61 }
+          },
+          "emerging_emotions": []
+        }
+      }
+    ]
+  }
+  ```
+- **특이사항**:
+  - 응답의 `turns`는 저장소 기준 정렬 순서(`order -> created_at -> turn_id`)를 따릅니다.
+  - 저장 시 `agent_id=None`이었던 턴은 조회 응답에서도 `agent_id: null`로 유지됩니다.
+
+### 7. 에이전트 집계 조회 (Meeting Agents)
+회의별 화자 카드/agent report용 aggregate를 반환합니다.
+
+- **Endpoint**: `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/agents`
+- **Response Example**:
+  ```json
+  {
+    "project_id": "proj_alpha",
+    "meeting_id": "m_20260401_001",
+    "total_count": 2,
+    "agents": [
+      {
+        "project_id": "proj_alpha",
+        "meeting_id": "m_20260401_001",
+        "agent_id": "agent_facilitator",
+        "turn_count": 6,
+        "turn_ids": ["t_001", "t_004", "t_009"],
+        "avg_sentiment": {
+          "positive": { "confidence": 42 },
+          "negative": { "confidence": 18 },
+          "neutral": { "confidence": 40 }
+        },
+        "primary_emotion": "joy",
+        "primary_signal": "alignment",
+        "emerging_emotions": ["optimism", "relief"],
+        "summary": null
+      }
+    ]
+  }
+  ```
+- **특이사항**:
+  - aggregate는 저장 파일이 아니라 raw turn을 기준으로 **조회 시 계산**합니다.
+  - unassigned bucket에 저장된 턴은 agent 집계 응답에서 `agent_id: null`로 노출됩니다.
+
+### 8. 관리형 실제 fixture 데이터 (Frontend 연동 준비용)
+실제 LLM 호출로 한 번 생성한 짧은 회의 데이터를 **재현 가능한 고정 fixture**로 관리합니다.
+
+- **seed 스크립트**: `backend/scripts/seed_issue27_demo_meeting.py`
+- **기본 fixture ID**
+  - `project_id`: `project-frontend-demo`
+  - `meeting_id`: `meeting-issue27-short-live`
+- **구성**
+  - agent 3명 (`alice`, `bob`, `carol`)
+  - turn 6개
+  - QA 리스크, 회귀 테스트 진행률, 결제 플로우 검증, 배포 여부 결정이 포함된 짧은 회의
+- **의도**
+  - 프론트엔드 개발을 나중에 하더라도, 동일한 실제 분석 결과 기반 데이터를 반복 사용
+  - VPN/LLM 상태와 무관하게 항상 같은 `project_id / meeting_id`를 복원
+
+```bash
+cd backend
+uv run python scripts/seed_issue27_demo_meeting.py
+```
+
+필요하면 project/meeting ID를 바꿔서 같은 fixture를 다른 경로로도 넣을 수 있습니다.
+
+```bash
+cd backend
+uv run python scripts/seed_issue27_demo_meeting.py \
+  --project-id project-my-demo \
+  --meeting-id meeting-short-demo
+```
+
+seed 후 확인 예시:
+
+```bash
+curl http://localhost:8000/api/v1/projects/project-frontend-demo/meetings/meeting-issue27-short-live
+curl http://localhost:8000/api/v1/projects/project-frontend-demo/meetings/meeting-issue27-short-live/turns
+curl http://localhost:8000/api/v1/projects/project-frontend-demo/meetings/meeting-issue27-short-live/agents
+```
+
 ---
 
 ## 📊 분석 항목 상세 정의 (Analysis Items)

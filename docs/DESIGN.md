@@ -80,6 +80,30 @@
   - 안정 계약: 식별자(`project_id`, `meeting_id`, `agent_id`, `turn_id`)와 분석 결과 축(`sentiment`, `emotions`, `signals`)은 유지하되 세부 필드는 구현에 따라 확장될 수 있습니다.
   - 저장 레이아웃은 `project_id -> meeting_id -> agent_id -> turns.json` 계층을 따르며, `aggregates.json`은 선택 저장으로 둡니다.
 
+### 구현된 조회/aggregate 엔드포인트 (Issue #27)
+
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}`
+  - 역할: overview 화면용 meeting aggregate 응답
+  - 포함: `turn_count`, `agent_count`, `topics`, `sentiment`, `emotions`, `signals`, `one_line_summary`
+  - 제외: full `turns` payload, agent별 상세 집계
+  - topic aggregate는 저장된 turn transcript를 합쳐 **조회 시 계산(on-read)** 합니다.
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+  - 역할: timeline/detail 패널용 정렬된 turn 목록 응답
+  - 포함: `TurnAnalysisRecord` 목록과 `total_count`
+  - 정렬 규칙: `order -> created_at -> turn_id`
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/agents`
+  - 역할: agent report/card 전용 aggregate 응답
+  - 포함: `turn_count`, `turn_ids`, `avg_sentiment`, `primary_emotion`, `primary_signal`, `emerging_emotions`
+
+### 조회 정책 메모
+
+- aggregate 저장 파일(`aggregates.json`)은 여전히 선택 항목이며, 기본 구현은 raw turn 기반 **조회 시 계산**을 우선합니다.
+- 저장 시 `agent_id=None`이었던 턴은 조회 응답에서 `agent_id: null`을 유지합니다. 즉, 내부 저장 버킷 `__unassigned__`는 외부 API 계약에 노출하지 않습니다.
+- 오류 계약:
+  - 잘못된 `project_id`/`meeting_id`: `422 INVALID_STORAGE_IDENTIFIER`
+  - 존재하지 않는 회의 경로: `404 MEETING_NOT_FOUND`
+  - topic aggregate 추론 실패: `502 MEETING_READ_LLM_FAILURE`
+
 ## Analyze 알고리즘 일관성 규칙
 
 - `/api/v1/analyze`, `/api/v1/analyze/inspect`, `/api/v1/analyze/inspect/stream`는 반드시 동일한 서비스 메서드(`run_analyze_pipeline`)를 호출해야 합니다.

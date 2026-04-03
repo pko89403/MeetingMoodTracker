@@ -516,6 +516,28 @@ async def extract_topics_with_llm(
     return _normalize_topics(raw_topics=parsed.topics)
 
 
+async def extract_meeting_topics(text: str) -> list[str]:
+    """회의 텍스트 하나를 받아 topic aggregate 계산용 토픽 리스트를 추출한다."""
+    preprocessed_text = preprocess_for_topic(text=text)
+    if preprocessed_text == "":
+        return []
+
+    try:
+        llm_config = get_llm_config()
+        client = _build_azure_client(llm_config=llm_config)
+    except Exception as exc:
+        raise AnalyzeInferenceError(
+            stage="config",
+            message="LLM 설정 로드 또는 클라이언트 생성에 실패했습니다.",
+        ) from exc
+
+    return await extract_topics_with_llm(
+        client=client,
+        deployment_name=llm_config.LLM_DEPLOYMENT_NAME,
+        preprocessed_text=preprocessed_text,
+    )
+
+
 async def analyze_sentiment_with_llm(
     client: AsyncAzureOpenAI,
     deployment_name: str,

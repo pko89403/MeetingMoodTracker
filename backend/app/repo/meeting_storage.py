@@ -40,6 +40,13 @@ class TurnAnalysisRepository(Protocol):
     def get_meeting_meta(self, project_id: str, meeting_id: str) -> MeetingMeta | None:
         """회의 메타데이터를 조회한다."""
 
+    def list_meeting_turns(
+        self,
+        project_id: str,
+        meeting_id: str,
+    ) -> list[TurnAnalysisRecord]:
+        """회의 하위 전체 턴을 정렬된 순서로 조회한다."""
+
 
 class JsonTurnAnalysisRepository:
     """프로젝트 계층 구조를 JSON 파일로 저장하는 저장소 구현."""
@@ -133,6 +140,19 @@ class JsonTurnAnalysisRepository:
         if not meeting_meta_path.exists():
             return None
         return MeetingMeta.model_validate_json(meeting_meta_path.read_text("utf-8"))
+
+    def list_meeting_turns(
+        self,
+        project_id: str,
+        meeting_id: str,
+    ) -> list[TurnAnalysisRecord]:
+        """회의 하위 전체 턴을 정렬된 순서로 조회한다."""
+        normalized_project_id = self._validated_project_id(project_id)
+        normalized_meeting_id = self._validated_meeting_id(meeting_id)
+        return self._read_all_meeting_turns(
+            project_id=normalized_project_id,
+            meeting_id=normalized_meeting_id,
+        )
 
     def _validated_project_id(self, project_id: str) -> str:
         """project_id를 저장 경로에 안전한 단일 segment로 검증한다."""

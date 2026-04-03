@@ -9,13 +9,14 @@ from pydantic import (
     field_validator,
 )
 
-from app.types.emotion import TurnEmotionResponse
+from app.types.emotion import EmotionScores, MeetingSignals, TurnEmotionResponse
 from app.types.identifiers import (
     UNASSIGNED_AGENT_ID,
     normalize_optional_agent_id,
     normalize_required_identifier,
     normalize_storage_segment,
 )
+from app.types.mood import AnalyzeSentiment
 from app.types.sentiment import TurnSentimentResponse
 
 
@@ -141,9 +142,14 @@ class AgentAggregate(BaseModel):
 
     project_id: str = Field(min_length=1)
     meeting_id: str = Field(min_length=1)
-    agent_id: str = Field(min_length=1)
+    agent_id: str | None = Field(default=None)
     turn_count: int = Field(ge=0)
     turn_ids: list[str] = Field(default_factory=list)
+    avg_sentiment: AnalyzeSentiment
+    primary_emotion: str | None = Field(default=None)
+    primary_signal: str | None = Field(default=None)
+    emerging_emotions: list[str] = Field(default_factory=list)
+    summary: str | None = Field(default=None)
 
 
 class MeetingAggregate(BaseModel):
@@ -153,6 +159,40 @@ class MeetingAggregate(BaseModel):
     meeting_id: str = Field(min_length=1)
     turn_count: int = Field(ge=0)
     agent_aggregates: list[AgentAggregate] = Field(default_factory=list)
+
+
+class MeetingOverviewResponse(BaseModel):
+    """회의 overview 조회 응답 스키마."""
+
+    project_id: str = Field(min_length=1)
+    meeting_id: str = Field(min_length=1)
+    created_at: str = Field(min_length=1)
+    updated_at: str = Field(min_length=1)
+    turn_count: int = Field(ge=0)
+    agent_count: int = Field(ge=0)
+    topics: list[str] = Field(default_factory=list)
+    sentiment: AnalyzeSentiment
+    emotions: EmotionScores
+    signals: MeetingSignals
+    one_line_summary: str | None = Field(default=None)
+
+
+class MeetingTurnsResponse(BaseModel):
+    """회의 발화 목록 조회 응답 스키마."""
+
+    project_id: str = Field(min_length=1)
+    meeting_id: str = Field(min_length=1)
+    total_count: int = Field(ge=0)
+    turns: list[TurnAnalysisRecord] = Field(default_factory=list)
+
+
+class MeetingAgentsResponse(BaseModel):
+    """회의 에이전트 집계 조회 응답 스키마."""
+
+    project_id: str = Field(min_length=1)
+    meeting_id: str = Field(min_length=1)
+    total_count: int = Field(ge=0)
+    agents: list[AgentAggregate] = Field(default_factory=list)
 
 
 class AgentTurnsDocument(BaseModel):
