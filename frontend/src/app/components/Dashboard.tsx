@@ -1,116 +1,145 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Header } from "./Header";
-import { SummaryCards } from "./SummaryCards";
-import { TimelineChart } from "./TimelineChart";
-import { SpeakerCards } from "./SpeakerCards";
-import { DetailPanel } from "./DetailPanel";
-import { useMeetingOverview, useMeetingTurns, useSpeakers } from "../../hooks/useMeeting";
+import { MeetingSummarySection } from "./MeetingSummarySection";
+import { TimelineSection, type ChartView } from "./TimelineSection";
+import { TurnTranscriptList } from "./TurnTranscriptList";
+import {
+  useMeetingAgents,
+  useMeetingOverview,
+  useMeetingTurns,
+} from "../../hooks/useMeeting";
+import {
+  ALL_AGENTS_FILTER,
+  MeetingTurn,
+  toAgentFilterValue,
+} from "../../lib/meetingDashboard";
 
 interface DashboardProps {
-  meetingId?: string;
+  projectId: string;
+  meetingId: string;
+  onReset: () => void;
 }
 
-export function Dashboard({ meetingId }: DashboardProps) {
+function filterTurns(turns: MeetingTurn[], selectedAgentFilter: string) {
+  return turns.filter((turn) => {
+    if (
+      selectedAgentFilter !== ALL_AGENTS_FILTER &&
+      toAgentFilterValue(turn.agentId) !== selectedAgentFilter
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export function Dashboard({ projectId, meetingId, onReset }: DashboardProps) {
   const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null);
-  const [chartView, setChartView] = useState<"signals" | "emotions">("signals");
+  const [chartView, setChartView] = useState<ChartView>("sentiment");
+  const [selectedAgentFilter, setSelectedAgentFilter] = useState<string>(ALL_AGENTS_FILTER);
 
-  const { data: summary, loading: summaryLoading } = useMeetingOverview(meetingId);
-  const { data: turns, loading: turnsLoading } = useMeetingTurns(meetingId);
-  const { data: speakers } = useSpeakers(meetingId);
+  const summaryState = useMeetingOverview(projectId, meetingId);
+  const turnsState = useMeetingTurns(projectId, meetingId);
+  const agentsState = useMeetingAgents(projectId, meetingId);
 
-  const selectedTurn = selectedTurnId ? turns.find((t) => t.turn_id === selectedTurnId) ?? null : null;
-  const isLoading = summaryLoading || turnsLoading;
+  const summary = summaryState.data;
+  const turns = turnsState.data ?? [];
+  const agents = agentsState.data ?? [];
+
+  const filteredTurns = useMemo(
+    () => filterTurns(turns, selectedAgentFilter),
+    [selectedAgentFilter, turns]
+  );
+
+  const errorMessages = [summaryState.error, turnsState.error, agentsState.error].filter(Boolean);
+  const isLoading = summaryState.loading || turnsState.loading || agentsState.loading;
+
+  useEffect(() => {
+    if (!selectedTurnId) {
+      return;
+    }
+
+    const existsInFilteredTurns = filteredTurns.some((turn) => turn.turnId === selectedTurnId);
+    if (!existsInFilteredTurns) {
+      setSelectedTurnId(null);
+    }
+  }, [filteredTurns, selectedTurnId]);
+
+  useEffect(() => {
+    if (selectedTurnId || filteredTurns.length === 0) {
+      return;
+    }
+
+    setSelectedTurnId(filteredTurns[0].turnId);
+  }, [filteredTurns, selectedTurnId]);
+
+  const selectedTurn = selectedTurnId
+    ? turns.find((turn) => turn.turnId === selectedTurnId) ?? null
+    : null;
+
+  const summaryFallback = {
+    totalTurns: turns.length,
+    totalAgents: agents.length,
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      <Header summary={summary} />
+    <div className="min-h-screen bg-[linear-gradient(180deg,_#f8fafc_0%,_#f1f5f9_100%)] text-slate-900 flex flex-col font-sans">
+      <Header
+        projectId={projectId}
+        meetingId={meetingId}
+        summary={summary}
+        onReset={onReset}
+      />
 
-      {isLoading && (
-        <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
-          데이터를 불러오는 중...
-        </div>
-      )}
-
-      {!isLoading && (
-        <main className="flex-1 flex overflow-hidden">
-          {/* Left Content Area - Scrollable */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-6 lg:py-6 pb-20">
-            <div className="max-w-[1400px] mx-auto flex flex-col space-y-6 lg:space-y-8">
-
-              {/* 1. Compact Summary Block */}
-              <section>
-                <SummaryCards summary={summary} />
+      <main className="mx-auto flex w-full max-w-[1400px] flex-1 gap-6 px-4 py-4 lg:px-6 lg:py-6">
+        <div className="flex-1 overflow-y-auto pb-20">
+          <div className="flex flex-col space-y-6 lg:space-y-8">
+            {errorMessages.length > 0 && !isLoading && (
+              <section
+                className="rounded-[24px] border border-rose-200 bg-[linear-gradient(180deg,_rgba(255,241,242,1)_0%,_rgba(255,251,251,1)_100%)] px-5 py-4 text-rose-800 shadow-[0_16px_40px_-28px_rgba(225,29,72,0.5)]"
+                role="alert"
+              >
+                <h2 className="text-sm font-semibold mb-1">일부 회의 데이터를 불러오지 못했습니다.</h2>
+                <p className="text-sm leading-6">{errorMessages.join(" / ")}</p>
               </section>
+            )}
 
-              {/* 2. Timeline - The Star of the Show */}
-              <section className="flex flex-col flex-1 h-[600px] min-h-[500px]">
-                <div className="flex items-center justify-between mb-3 border-b border-slate-200 pb-2">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                    <span className="w-1 h-3 bg-indigo-500 inline-block"></span>
-                    Emotion & Signal Timeline
-                  </h2>
-                  <div className="flex bg-slate-100 p-0.5 border border-slate-200">
-                    <button
-                      onClick={() => setChartView("signals")}
-                      className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                        chartView === "signals" ? "bg-white shadow-sm text-indigo-700 border-b border-indigo-400" : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      Meeting Signals
-                    </button>
-                    <button
-                      onClick={() => setChartView("emotions")}
-                      className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                        chartView === "emotions" ? "bg-white shadow-sm text-indigo-700 border-b border-indigo-400" : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      Base Emotions
-                    </button>
-                  </div>
-                </div>
-                <div className="bg-white border border-slate-200 p-4 flex-1 shadow-sm">
-                  <TimelineChart
-                    turns={turns}
-                    view={chartView}
-                    onSelectTurn={setSelectedTurnId}
-                    selectedTurnId={selectedTurnId}
-                  />
-                </div>
-              </section>
+            <MeetingSummarySection
+              summary={summary}
+              isLoading={isLoading}
+              fallback={summaryFallback}
+            />
 
-              {/* 3. Speaker Analysis - Compact Rows */}
-              <section>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
-                  <span className="w-1 h-3 bg-slate-400 inline-block"></span>
-                  Speaker Analysis
-                </h2>
-                <SpeakerCards speakers={speakers} />
-              </section>
+            <TimelineSection
+              turns={turns}
+              filteredTurns={filteredTurns}
+              agents={agents}
+              selectedTurn={selectedTurn}
+              selectedTurnId={selectedTurnId}
+              chartView={chartView}
+              selectedAgentFilter={selectedAgentFilter}
+              turnsLoading={turnsState.loading}
+              turnsEmpty={turnsState.empty}
+              onSelectTurn={setSelectedTurnId}
+              onClearSelectedTurn={() => setSelectedTurnId(null)}
+              onSelectAgentFilter={setSelectedAgentFilter}
+              onSelectChartView={setChartView}
+            />
 
-            </div>
           </div>
+        </div>
 
-          {/* Right Side Drawer - Selected Turn Detail */}
-          <aside className="w-[420px] flex-shrink-0 bg-white border-l border-slate-300 overflow-y-auto hidden xl:block shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]">
-            <DetailPanel turn={selectedTurn} speakers={speakers} />
-          </aside>
-
-          {/* Mobile Detail Panel Overlay */}
-          {selectedTurn && (
-            <div className="xl:hidden fixed inset-0 z-50 bg-slate-900/40 flex justify-end">
-              <div className="w-full max-w-sm bg-white h-full overflow-y-auto shadow-2xl flex flex-col border-l border-slate-300">
-                <div className="p-3 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-                  <h3 className="font-bold text-[10px] uppercase tracking-wider text-slate-500">Turn Details</h3>
-                  <button onClick={() => setSelectedTurnId(null)} className="text-slate-500 p-2 text-[10px] font-bold uppercase tracking-wider hover:text-slate-800">Close</button>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  <DetailPanel turn={selectedTurn} speakers={speakers} />
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
-      )}
+        <aside className="hidden w-[420px] flex-shrink-0 xl:block">
+          <div className="sticky top-[138px] max-h-[calc(100vh-160px)]">
+            <TurnTranscriptList
+              turns={filteredTurns}
+              selectedTurnId={selectedTurnId}
+              onSelectTurn={setSelectedTurnId}
+              compact
+              className="h-[calc(100vh-160px)] shadow-[0_20px_50px_-28px_rgba(15,23,42,0.24)]"
+            />
+          </div>
+        </aside>
+      </main>
     </div>
   );
 }

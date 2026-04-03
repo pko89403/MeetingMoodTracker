@@ -119,7 +119,7 @@ API를 직접 호출하지 않고 웹 화면에서 텍스트를 분석하고 결
 - **실행**: `./scripts/run_ui.sh` (기본 포트: 8501)
 - **주요 기능**:
   - 분석 로그 실시간 스트리밍 (SSE)
-  - 분석 히스토리 저장 및 재조회
+  - 세션 내 분석 히스토리 저장 및 재조회 (브라우저 세션 메모리 기반)
   - 감정 분포 차트 시각화
 
 ---
@@ -143,6 +143,20 @@ API를 직접 호출하지 않고 웹 화면에서 텍스트를 분석하고 결
 - **Worktree Setup**: `./scripts/setup_worktree.sh`
 - **Issue Sync**: `uv run python scripts/sync_feature_issues.py`
 - **Offline Evaluation**: `scripts/evaluate_sentiment_with_judge.py`
+- **Project Skills**: `.agents/skills/branch-pr-workflow`, `.agents/skills/commit-push-pr`
+
+### 4. 저장 모델 로드맵 (Issue #26)
+- 영속 저장의 canonical 식별자는 `project_id -> meeting_id -> agent_id -> turn_id` 계층입니다.
+- 저장소 책임은 `app/repo/` 레이어에 배치하며, 초기 구현은 JSON 파일 기반 repository를 기준으로 설계합니다.
+- JSON 경로 초안:
+  - `data/projects/{project_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/meta.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/agents/{agent_id}/turns.json`
+  - `data/projects/{project_id}/meetings/{meeting_id}/aggregates.json` (선택)
+- 기본 정책은 **raw turn result 우선 보존 + aggregate는 조회 시 계산**입니다.
+- **현재 공개 API 계약은 아직 project-aware로 전환되지 않았습니다.**
+  - `POST /api/v1/analyze`, `POST /api/v1/sentiment/turn` 요청 본문은 현재도 `meeting_id` 중심입니다.
+  - `speaker_id`는 일부 요청 타입에 남아 있는 legacy 필드이며, 저장 모델 기준 canonical 명칭은 `agent_id`입니다.
 
 ---
 

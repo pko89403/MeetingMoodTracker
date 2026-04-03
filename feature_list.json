@@ -128,7 +128,7 @@
       "id": "feat_hierarchical_meeting_analysis",
       "name": "Hierarchical Meeting Analysis API Integration",
       "description": "Project-Meeting-Agent-Turn 계층 구조를 반영한 백엔드 분석 파이프라인 구축 및 프론트엔드 대시보드 연동",
-      "passes": false,
+      "passes": true,
       "issue_rule": {
         "objective": "프론트엔드 대시보드의 시각화 요구사항을 충족하기 위해 백엔드를 계층적 데이터 구조(Project > Meeting > Agent > Turn)로 재설계하고 연동한다.",
         "in_scope": [
@@ -158,6 +158,12 @@
           "프론트엔드 대시보드가 Mock 데이터 없이 실제 분석 결과로 렌더링됨",
           "모든 분석 단계가 SSE 스트림을 통해 실시간으로 시각화됨"
         ]
+      },
+      "github_issue": {
+        "number": 31,
+        "url": "https://github.com/pko89403/MeetingMoodTracker/issues/31",
+        "state": "closed",
+        "synced_at": "2026-04-03T06:23:04+00:00"
       }
     }
   ]

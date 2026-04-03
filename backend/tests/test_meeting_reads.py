@@ -15,7 +15,7 @@ from app.types.emotion import (
     MeetingSignals,
     TurnEmotionResponse,
 )
-from app.types.mood import AnalyzeSentiment, SentimentConfidence
+from app.types.mood import AnalyzeSentiment, MeetingRubrics, SentimentConfidence
 from app.types.sentiment import TurnSentimentResponse
 from app.types.storage import (
     AgentAggregate,
@@ -59,6 +59,11 @@ def _overview() -> MeetingOverviewResponse:
             clarity=MeetingSignalConfidenceValue(confidence=78),
             engagement=MeetingSignalConfidenceValue(confidence=70),
         ),
+        rubric=MeetingRubrics(
+            dominance=61,
+            efficiency=84,
+            cohesion=73,
+        ),
         one_line_summary="2개 발화에서 배포 일정, QA 리스크 중심으로 논의가 진행됐습니다.",
     )
 
@@ -87,6 +92,11 @@ def _turns() -> MeetingTurnsResponse:
                     emotions=_overview().emotions,
                     meeting_signals=_overview().signals,
                     emerging_emotions=[],
+                ),
+                rubric=MeetingRubrics(
+                    dominance=61,
+                    efficiency=84,
+                    cohesion=73,
                 ),
             )
         ],

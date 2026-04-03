@@ -10,6 +10,7 @@ from app.types.emotion import (
     MeetingSignals,
     TurnEmotionResponse,
 )
+from app.types.mood import MeetingRubrics
 from app.types.sentiment import TurnSentimentResponse
 from app.types.storage import UNASSIGNED_AGENT_ID, TurnAnalysisRecord, TurnIdentity
 
@@ -48,6 +49,11 @@ def _sample_record(*, created_at: str, evidence: str) -> TurnAnalysisRecord:
                 engagement=MeetingSignalConfidenceValue(confidence=75),
             ),
             emerging_emotions=[],
+        ),
+        rubric=MeetingRubrics(
+            dominance=65,
+            efficiency=61,
+            cohesion=86,
         ),
     )
 
@@ -95,6 +101,7 @@ def test_upsert_turn_analysis_creates_project_hierarchy_files(tmp_path) -> None:
     assert meeting_meta["turn_count"] == 1
     assert meeting_meta["agent_ids"] == ["alice"]
     assert turns_document["turns"][0]["sentiment"]["evidence"] == "좋아요"
+    assert turns_document["turns"][0]["rubric"]["dominance"] == 65
     assert turns_document["turns"][0]["updated_at"] != ""
     assert saved_project_meta is not None
     assert saved_project_meta.meeting_count == 1

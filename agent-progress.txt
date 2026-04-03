@@ -2,6 +2,85 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-04-03] 이슈 #28 Timeline 지표 isolate 상호작용 추가
+- **수행 내역**:
+  1. `TimelineChart.tsx` 하단 범례를 클릭 가능한 버튼으로 변경.
+  2. 첫 클릭은 해당 지표만 isolate, 추가 클릭은 다른 지표를 함께 켜는 multi-toggle, isolate된 지표 재클릭은 전체 복원으로 구현.
+  3. 탭 전환 시 visible-series 상태는 초기화되도록 조정.
+  4. `전체 지표 보기` 복원 버튼과 Playwright 회귀 테스트를 추가.
+- **비고**:
+  - chart 시리즈 자체를 동적으로 축소해 클릭 후 실제로 해당 지표만 차트에 표시됩니다.
+---
+## [2026-04-03] 이슈 #28 Timeline ApexCharts 전환 + 탭 명칭 정리
+- **수행 내역**:
+  1. `TimelineChart.tsx`를 Recharts에서 `react-apexcharts` 기반 line chart로 교체.
+  2. timeline 탭을 `긍부정 → 기본 감정 → 회의 시그널 → 종합 시그널` 순서/라벨로 정리하고 기본 선택 탭도 `긍부정`으로 변경.
+  3. `차트 해석 기준` 블록과 토글 UI를 제거해 차트 영역을 단순화.
+  4. Playwright 회귀 테스트를 ApexCharts DOM 기준으로 갱신하고 `@playwright/test` 런타임을 복구.
+- **비고**:
+  - signal view의 강조 구간과 선택 turn 세로선은 Apex annotations로 유지합니다.
+---
+## [2026-04-03] 이슈 #28 Timeline agent filter 배치 정리
+- **수행 내역**:
+  1. `TimelineSection.tsx` 상단 제어영역에서 chart tab과 agent filter를 하나의 control surface 안으로 재배치.
+  2. 필터는 `현재 선택된 에이전트 라벨 + 선택 셀렉트` 조합으로 정리해 독립적으로 튀지 않게 조정.
+  3. visible turn count/status 문구는 최종적으로 chart block 아래 보조 메타 줄로 이동.
+  4. large screen에서도 제목 블록과 control surface가 같은 행을 공유하지 않도록 세로 스택으로 고정.
+- **비고**:
+  - 타임라인 제어영역의 정보 위계는 `제목/요약 → 탭 → 필터` 순서로 정렬됩니다.
+---
+## [2026-04-03] 이슈 #28 Agent report 섹션 제거
+- **수행 내역**:
+  1. 사용자 요청에 따라 대시보드의 `에이전트별 패턴 리포트` 섹션을 제거.
+  2. `Dashboard.tsx`에서 `AgentReportSection` 렌더를 삭제.
+  3. 더 이상 참조되지 않는 `AgentReportSection.tsx`, `AgentCards.tsx`를 제거.
+  4. Playwright 회귀 테스트를 새 레이아웃 기준으로 갱신.
+- **비고**:
+  - agent 데이터는 timeline의 agent filter/summary fallback 계산에는 계속 사용합니다.
+---
+## [2026-04-03] feature_list / Issue #31 상태 동기화
+- **수행 내역**:
+  1. GitHub Issue #31(`feat_hierarchical_meeting_analysis`)가 이미 `closed/completed` 상태임을 재확인.
+  2. `feature_list.json`의 `feat_hierarchical_meeting_analysis`를 `passes: true`로 전환.
+  3. feature 메타데이터의 `github_issue.state`와 `synced_at`를 현재 상태로 동기화.
+- **비고**:
+  - 현재 `feature_list.json` 기준 `passes:false` 기능이 남아 있지 않습니다.
+---
+## [2026-04-03] 이슈 #28 대시보드 구조 리팩터링 + 반응형 상세 패널 통합
+- **수행 내역**:
+  1. `frontend/src/app/components/Dashboard.tsx`를 데이터 fetch/선택 상태/상위 레이아웃만 담당하도록 축소.
+  2. 섹션 책임 분리를 위해 신규 컴포넌트를 추가:
+     - `MeetingSummarySection.tsx`
+     - `TimelineSection.tsx`
+     - `AgentReportSection.tsx`
+  3. 재사용 UI 조각을 분리:
+     - `TurnTranscriptList.tsx`
+     - `SectionState.tsx`
+     - `SelectedTurnPanel.tsx`
+  4. 기존 desktop inline detail + mobile drawer detail의 content tree 중복을 `SelectedTurnPanel`로 통합.
+  5. 기존 transcript rail/list도 동일 `TurnTranscriptList` 컴포넌트를 재사용하도록 정리.
+- **검증 결과**:
+  - `cd frontend && npm run build` 통과
+  - `cd frontend && npx playwright test tests/issue28-dashboard.spec.ts` 통과
+- **비고**:
+  - issue #28 UI/UX 중복 정리의 남은 핵심 todo(섹션 분리, 반응형 content shell 통합)를 마무리한 상태입니다.
+---
+## [2026-04-03] 이슈 #28용 서브에이전트 스쿼드 구성
+- **수행 내역**:
+  1. 이슈 #28(`회의 감정 타임라인/요약/에이전트 보고서 화면 정의`)와 현재 프론트/백엔드 상태를 재분석.
+  2. 사용자 결정에 따라 #28을 **독립 이슈**로 유지하고, `.github/agents`에서는 기존 프론트/API 에이전트를 재사용하는 전략으로 확정.
+  3. 신규 에이전트 정의 추가:
+     - `.github/agents/ui-designer.agent.md`
+     - `.github/agents/product-owner.agent.md`
+  4. 기존 에이전트 재사용 매핑을 운영 문서에 반영:
+     - FrontEnd 개발 에이전트 → `Expert React Frontend Engineer`
+     - BackEnd 개발 에이전트 → `API Architect`
+  5. 문서 동기화:
+     - `docs/AGENT_CAPABILITY_CATALOG.md`
+     - `docs/AGENT_OPERATIONS_GUIDE.md`
+- **비고**:
+  - 현재 백엔드의 project-aware 조회 API는 #28에 필요한 범위를 이미 대부분 제공하므로, 후속 실행의 중심은 UI 정의와 프론트 정렬입니다.
+---
 ## [2026-04-01] Analyze v1 재정의 이어받기 (thread `019d4713-161f-78a2-ad1b-df64eabf1a72`)
 - **수행 내역**:
   1. `AnalyzeResponse`를 `topic/sentiment/emotion/correlation` 구조로 재정의:
