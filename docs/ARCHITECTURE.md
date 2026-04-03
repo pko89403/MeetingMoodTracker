@@ -49,6 +49,22 @@ MeetingMoodTracker는 인간의 언어로 된 룰이 아닌 "기계적인 하네
 - `agent_id`가 비어 있는 경우 API/서비스 경계에서는 `None`을 유지하고, 저장 경로 버킷에서만 예약 식별자 `__unassigned__`를 사용합니다.
 - aggregate는 아직 선택 사항이며, 1차 구현은 raw turn result 보존과 meta 갱신에 집중합니다.
 
+### Project-aware Meeting Read Flow (Issue #27)
+
+- `app/runtime/meeting_reads.py`가 아래 조회 진입점을 담당합니다.
+  - `GET /api/v1/projects/{project_id}/meetings/{meeting_id}`
+  - `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+  - `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/agents`
+- `app/service/meeting_read_service.py`가 조회 시 aggregate 계산 책임을 가집니다.
+  - `get_meeting_overview`: meeting meta + turn 목록을 읽고 topic/sentiment/emotion/signal aggregate를 조합
+  - `get_meeting_turns`: 저장된 턴을 정렬 순서대로 반환
+  - `get_meeting_agents`: agent별 turn grouping 후 summary aggregate 계산
+- `app/repo/meeting_storage.py`는 read path에서도 영속 저장의 단일 진입점입니다.
+  - `get_meeting_meta`
+  - `list_meeting_turns`
+- topic aggregate는 별도 materialized file 없이 **조회 시 계산(on-read)** 하며, 기존 `app/service/analyze_service.py`의 topic extraction 로직을 재사용합니다.
+- 내부 저장 버킷 `__unassigned__`는 repo 내부에만 존재하며, runtime 응답에서는 다시 `agent_id: null` 계약으로 노출됩니다.
+
 ### LLM Config Read Flow
 
 - `app/runtime/env_config.py`의 `GET /api/env/v1` 라우트가 진입점입니다.
