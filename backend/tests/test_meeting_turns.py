@@ -1,3 +1,5 @@
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import app.runtime.meeting_turns as meeting_turns_runtime
@@ -116,3 +118,16 @@ def test_ingest_meeting_turn_returns_502_on_inference_failure(monkeypatch) -> No
         "message_en": "Turn analysis persistence failed from LLM service.",
         "stage": "emotion",
     }
+
+
+@pytest.mark.asyncio
+async def test_ingest_meeting_turn_returns_422_on_invalid_storage_identifier() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        await meeting_turns_runtime.ingest_meeting_turn(
+            project_id="..",
+            meeting_id="meeting-001",
+            request=meeting_turns_runtime.TurnIngestRequest.model_validate(_payload()),
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail["error_code"] == "INVALID_STORAGE_IDENTIFIER"

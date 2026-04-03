@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from app.repo.meeting_storage import JsonTurnAnalysisRepository
 from app.types.emotion import (
     EmotionConfidenceValue,
@@ -174,3 +176,24 @@ def test_upsert_turn_analysis_tracks_unassigned_agent_bucket(tmp_path) -> None:
     assert saved is not None
     assert saved.agent_id is None
     assert meeting_meta["agent_ids"] == [UNASSIGNED_AGENT_ID]
+
+
+def test_upsert_turn_analysis_rejects_path_traversal_identifiers(tmp_path) -> None:
+    repository = JsonTurnAnalysisRepository(data_root=tmp_path / "projects")
+    escaped_record = _sample_record(
+        created_at="2026-04-03T00:00:00+00:00",
+        evidence="좋아요",
+    ).model_copy(update={"agent_id": "../../escape"})
+
+    with pytest.raises(ValueError, match="path separators"):
+        repository.upsert_turn_analysis(escaped_record)
+
+    escaped_turns_path = (
+        tmp_path
+        / "projects"
+        / "project-alpha"
+        / "meetings"
+        / "escape"
+        / "turns.json"
+    )
+    assert not escaped_turns_path.exists()

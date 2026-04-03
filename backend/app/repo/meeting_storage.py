@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol
 
 from app.config.storage import get_projects_data_root
+from app.types.identifiers import normalize_storage_segment
 from app.types.storage import (
     UNASSIGNED_AGENT_ID,
     AgentTurnsDocument,
@@ -50,15 +51,18 @@ class JsonTurnAnalysisRepository:
     def upsert_turn_analysis(self, record: TurnAnalysisRecord) -> TurnAnalysisRecord:
         """project/meeting/agent/turn 복합 식별자로 분석 결과를 저장 또는 교체한다."""
         now = _now_iso_utc()
+        project_id = self._validated_project_id(record.project_id)
+        meeting_id = self._validated_meeting_id(record.meeting_id)
+        agent_bucket_id = self._validated_agent_bucket_id(record.storage_agent_id())
         turns_path = self._turns_path(
-            project_id=record.project_id,
-            meeting_id=record.meeting_id,
-            agent_id=record.storage_agent_id(),
+            project_id=project_id,
+            meeting_id=meeting_id,
+            agent_id=agent_bucket_id,
         )
-        project_meta_path = self._project_meta_path(project_id=record.project_id)
+        project_meta_path = self._project_meta_path(project_id=project_id)
         meeting_meta_path = self._meeting_meta_path(
-            project_id=record.project_id,
-            meeting_id=record.meeting_id,
+            project_id=project_id,
+            meeting_id=meeting_id,
         )
 
         meeting_was_missing = not meeting_meta_path.exists()
@@ -68,12 +72,12 @@ class JsonTurnAnalysisRepository:
             updated_at=now,
         )
         all_turns = self._read_all_meeting_turns(
-            project_id=record.project_id,
-            meeting_id=record.meeting_id,
+            project_id=project_id,
+            meeting_id=meeting_id,
         )
         self._upsert_project_meta(
             project_meta_path=project_meta_path,
-            project_id=record.project_id,
+            project_id=project_id,
             meeting_was_missing=meeting_was_missing,
             updated_at=now,
         )
@@ -90,16 +94,21 @@ class JsonTurnAnalysisRepository:
         turn_identity: TurnIdentity,
     ) -> TurnAnalysisRecord | None:
         """에이전트 컬렉션에서 해당 turn_id 레코드를 조회한다."""
+        project_id = self._validated_project_id(turn_identity.project_id)
+        meeting_id = self._validated_meeting_id(turn_identity.meeting_id)
+        agent_bucket_id = self._validated_agent_bucket_id(
+            turn_identity.storage_agent_id()
+        )
         turns_path = self._turns_path(
-            project_id=turn_identity.project_id,
-            meeting_id=turn_identity.meeting_id,
-            agent_id=turn_identity.storage_agent_id(),
+            project_id=project_id,
+            meeting_id=meeting_id,
+            agent_id=agent_bucket_id,
         )
         document = self._read_turns_document(
             turns_path=turns_path,
-            project_id=turn_identity.project_id,
-            meeting_id=turn_identity.meeting_id,
-            agent_id=turn_identity.storage_agent_id(),
+            project_id=project_id,
+            meeting_id=meeting_id,
+            agent_id=agent_bucket_id,
         )
         for item in document.turns:
             if item.turn_id == turn_identity.turn_id:
@@ -108,7 +117,9 @@ class JsonTurnAnalysisRepository:
 
     def get_project_meta(self, project_id: str) -> ProjectMeta | None:
         """프로젝트 meta.json을 읽어 반환한다."""
-        project_meta_path = self._project_meta_path(project_id=project_id)
+        project_meta_path = self._project_meta_path(
+            project_id=self._validated_project_id(project_id)
+        )
         if not project_meta_path.exists():
             return None
         return ProjectMeta.model_validate_json(project_meta_path.read_text("utf-8"))
@@ -116,12 +127,28 @@ class JsonTurnAnalysisRepository:
     def get_meeting_meta(self, project_id: str, meeting_id: str) -> MeetingMeta | None:
         """회의 meta.json을 읽어 반환한다."""
         meeting_meta_path = self._meeting_meta_path(
-            project_id=project_id,
-            meeting_id=meeting_id,
+            project_id=self._validated_project_id(project_id),
+            meeting_id=self._validated_meeting_id(meeting_id),
         )
         if not meeting_meta_path.exists():
             return None
         return MeetingMeta.model_validate_json(meeting_meta_path.read_text("utf-8"))
+
+    def _validated_project_id(self, project_id: str) -> str:
+        """project_id를 저장 경로에 안전한 단일 segment로 검증한다."""
+        return normalize_storage_segment(project_id, field_name="project_id")
+
+    def _validated_meeting_id(self, meeting_id: str) -> str:
+        """meeting_id를 저장 경로에 안전한 단일 segment로 검증한다."""
+        return normalize_storage_segment(meeting_id, field_name="meeting_id")
+
+    def _validated_agent_bucket_id(self, agent_id: str) -> str:
+        """agent bucket id를 저장 경로에 안전한 단일 segment로 검증한다."""
+        return normalize_storage_segment(
+            agent_id,
+            field_name="agent_id",
+            allow_reserved_unassigned=True,
+        )
 
     def _project_dir(self, project_id: str) -> Path:
         """프로젝트 디렉터리 경로를 계산한다."""

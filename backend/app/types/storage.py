@@ -1,23 +1,22 @@
 """프로젝트/회의/에이전트/턴 저장 모델 정의."""
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+)
 
 from app.types.emotion import TurnEmotionResponse
+from app.types.identifiers import (
+    UNASSIGNED_AGENT_ID,
+    normalize_optional_agent_id,
+    normalize_required_identifier,
+    normalize_storage_segment,
+)
 from app.types.sentiment import TurnSentimentResponse
-
-UNASSIGNED_AGENT_ID = "__unassigned__"
-
-
-def _normalize_optional_agent_id(value: str | None) -> str | None:
-    """에이전트 식별자를 trim하고 비어 있으면 None으로 정규화한다."""
-    if value is None:
-        return None
-    normalized = value.strip()
-    if normalized == "":
-        return None
-    if normalized == UNASSIGNED_AGENT_ID:
-        raise ValueError(f"agent_id '{UNASSIGNED_AGENT_ID}' is reserved.")
-    return normalized
 
 
 class ProjectMeta(BaseModel):
@@ -45,23 +44,26 @@ class TurnIdentity(BaseModel):
 
     project_id: str = Field(min_length=1)
     meeting_id: str = Field(min_length=1)
-    agent_id: str | None = Field(default=None, min_length=1)
+    agent_id: str | None = Field(default=None)
     turn_id: str = Field(min_length=1)
 
-    @field_validator("project_id", "meeting_id", "turn_id")
+    @field_validator("project_id", "meeting_id")
     @classmethod
-    def validate_required_identifier(cls, value: str) -> str:
-        """필수 식별자의 좌우 공백을 제거하고 빈 문자열을 금지한다."""
-        normalized = value.strip()
-        if normalized == "":
-            raise ValueError("identifier must not be blank.")
-        return normalized
+    def validate_storage_identifier(cls, value: str, info: ValidationInfo) -> str:
+        """저장 경로에 반영되는 식별자는 안전한 단일 segment만 허용한다."""
+        return normalize_storage_segment(value, field_name=info.field_name)
 
-    @field_validator("agent_id")
+    @field_validator("turn_id")
+    @classmethod
+    def validate_turn_id(cls, value: str) -> str:
+        """turn_id는 공백만 제거하고 빈 문자열만 금지한다."""
+        return normalize_required_identifier(value, field_name="turn_id")
+
+    @field_validator("agent_id", mode="before")
     @classmethod
     def validate_agent_id(cls, value: str | None) -> str | None:
         """agent_id는 비어 있으면 None으로 유지하고 예약값 충돌을 막는다."""
-        return _normalize_optional_agent_id(value)
+        return normalize_optional_agent_id(value)
 
     def storage_agent_id(self) -> str:
         """저장 경로에서 사용할 agent 버킷 식별자를 반환한다."""
@@ -86,18 +88,17 @@ class TurnIngestRequest(BaseModel):
 
     agent_id: str | None = Field(
         default=None,
-        min_length=1,
         validation_alias=AliasChoices("agent_id", "speaker_id"),
     )
     turn_id: str = Field(min_length=1)
     utterance_text: str = Field(min_length=1, max_length=4000)
     order: int | None = Field(default=None, ge=0)
 
-    @field_validator("agent_id")
+    @field_validator("agent_id", mode="before")
     @classmethod
     def validate_ingest_agent_id(cls, value: str | None) -> str | None:
         """레거시 speaker_id 입력을 agent_id로 정규화한다."""
-        return _normalize_optional_agent_id(value)
+        return normalize_optional_agent_id(value)
 
 
 class Project(BaseModel):

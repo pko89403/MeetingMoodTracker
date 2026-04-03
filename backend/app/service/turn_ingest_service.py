@@ -10,6 +10,7 @@ from app.service.sentiment_service import (
     classify_turn_sentiment,
 )
 from app.types.emotion import TurnEmotionRequest
+from app.types.identifiers import normalize_storage_segment
 from app.types.sentiment import TurnSentimentRequest
 from app.types.storage import TurnAnalysisRecord, TurnIngestRequest
 
@@ -35,14 +36,22 @@ async def store_turn_analysis(
     repository: TurnAnalysisRepository | None = None,
 ) -> TurnAnalysisRecord:
     """발화 단위 감정/정서 분석 후 JSON 저장소에 결과를 upsert한다."""
+    normalized_project_id = normalize_storage_segment(
+        project_id,
+        field_name="project_id",
+    )
+    normalized_meeting_id = normalize_storage_segment(
+        meeting_id,
+        field_name="meeting_id",
+    )
     sentiment_request = TurnSentimentRequest(
-        meeting_id=meeting_id,
+        meeting_id=normalized_meeting_id,
         turn_id=request.turn_id,
         agent_id=request.agent_id,
         utterance_text=request.utterance_text,
     )
     emotion_request = TurnEmotionRequest(
-        meeting_id=meeting_id,
+        meeting_id=normalized_meeting_id,
         turn_id=request.turn_id,
         agent_id=request.agent_id,
         utterance_text=request.utterance_text,
@@ -60,8 +69,8 @@ async def store_turn_analysis(
 
     now = _now_iso_utc()
     record = TurnAnalysisRecord(
-        project_id=project_id,
-        meeting_id=meeting_id,
+        project_id=normalized_project_id,
+        meeting_id=normalized_meeting_id,
         agent_id=request.agent_id,
         turn_id=request.turn_id,
         utterance_text=request.utterance_text,

@@ -27,11 +27,19 @@
   - Event Sequence: `start -> log* -> result -> done` (실패 시 `error`)
 - `POST /api/v1/sentiment/turn`:
   - Purpose: 발화 턴 단위 감정 분류 (`POS`/`NEG`/`NEUTRAL`)
-  - Request: `TurnSentimentRequest` (meeting_id, turn_id, speaker_id?, utterance_text)
+  - Request: `TurnSentimentRequest` (meeting_id, turn_id, agent_id?/speaker_id?, utterance_text)
   - Response: `TurnSentimentResponse` (label, confidence, evidence)
   - 특이사항:
     - 한국어 중심 텍스트 + 영어 혼합 입력(code-switching) 대응
     - OpenAI SDK(Azure OpenAI) + `json_schema` 구조화 출력 강제
+- `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`:
+  - Purpose: 프로젝트/회의 경로 아래 발화 턴을 분석 후 저장
+  - Request: `TurnIngestRequest` (`agent_id`/`speaker_id`, `turn_id`, `utterance_text`, `order`)
+  - Response: `TurnAnalysisRecord` (`project_id`, `meeting_id`, `agent_id`, `turn_id`, `created_at`, `updated_at`, `sentiment`, `emotion`)
+  - 특이사항:
+    - canonical 식별자는 `project_id + meeting_id + agent_id + turn_id`
+    - 비어 있는 `agent_id`/`speaker_id`는 API 경계에서 `None`으로 정규화되고 저장 버킷에서는 `__unassigned__`로 보관
+    - project/meeting/agent 식별자는 path separator 및 dot segment를 허용하지 않음
 - `GET /healthz`:
   - Purpose: 컨테이너/런타임에서 애플리케이션 프로세스 응답성(liveness) 확인
   - Response: `HealthzResponse` (`status="ok"`)
@@ -59,16 +67,16 @@
 
 ### 계약 정렬 메모
 
-- 현재 backend 요청 타입은 아직 `project_id`를 받지 않습니다.
-- `speaker_id`가 일부 타입에 남아 있으며, 저장 모델 기준 canonical 명칭은 `agent_id`입니다.
-- 따라서 issue #26 문서는 **저장 계층의 목표 계약**을 먼저 고정하고, 실제 request/response 타입 전환은 후속 구현 이슈와 함께 정렬합니다.
+- `/api/v1/analyze` 계열은 아직 meeting 중심 계약을 유지합니다.
+- turn 단위 sentiment/emotion/ingest 요청은 `agent_id`를 canonical 명칭으로 사용하고 `speaker_id` alias를 함께 허용합니다.
+- 따라서 issue #26의 1차 구현은 **project-aware 저장 write path**를 추가하고, 기존 analyze 흐름은 깨지지 않도록 분리 유지합니다.
 
-### 예정 엔드포인트 (아직 미구현)
+### 구현된 저장 엔드포인트
 
 - `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
   - 역할: 턴 수집 + 분석 + 저장을 하나의 API에서 처리
-  - 요청 초안: `{ agent_id: str | None, turn_id: str, utterance_text: str, order: int | None }`
-  - 응답 초안: 저장된 turn analysis record (`project_id`, `meeting_id`, `agent_id`, `turn_id`, `created_at`, 분석 결과 필드 포함)
+  - 요청: `{ agent_id: str | None, turn_id: str, utterance_text: str, order: int | None }`
+  - 응답: 저장된 turn analysis record (`project_id`, `meeting_id`, `agent_id`, `turn_id`, `created_at`, 분석 결과 필드 포함)
   - 안정 계약: 식별자(`project_id`, `meeting_id`, `agent_id`, `turn_id`)와 분석 결과 축(`sentiment`, `emotions`, `signals`)은 유지하되 세부 필드는 구현에 따라 확장될 수 있습니다.
   - 저장 레이아웃은 `project_id -> meeting_id -> agent_id -> turns.json` 계층을 따르며, `aggregates.json`은 선택 저장으로 둡니다.
 

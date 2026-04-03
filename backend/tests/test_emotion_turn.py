@@ -88,6 +88,30 @@ def test_turn_emotion_endpoint_accepts_legacy_speaker_id_alias(monkeypatch) -> N
     assert response.status_code == 200
 
 
+def test_turn_emotion_endpoint_normalizes_blank_agent_id(monkeypatch) -> None:
+    async def _fake_classify_turn_emotion(request) -> TurnEmotionResponse:
+        assert request.agent_id is None
+        return _sample_response()
+
+    monkeypatch.setattr(
+        emotion_runtime,
+        'classify_turn_emotion',
+        _fake_classify_turn_emotion,
+    )
+
+    response = client.post(
+        '/api/v1/emotion/turn',
+        json={
+            'meeting_id': 'm_001',
+            'turn_id': 't_001',
+            'agent_id': '   ',
+            'utterance_text': '이 일정이면 배포 리스크가 조금 걱정됩니다.',
+        },
+    )
+
+    assert response.status_code == 200
+
+
 def test_turn_emotion_endpoint_returns_502_on_inference_failure(monkeypatch) -> None:
     async def _raise_error(request) -> TurnEmotionResponse:
         assert request.turn_id == 't_001'

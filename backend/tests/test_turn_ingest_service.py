@@ -136,3 +136,16 @@ async def test_store_turn_analysis_preserves_missing_agent_id_for_repository_bou
     )
 
     assert result.agent_id is None
+
+
+def test_turn_ingest_request_accepts_blank_legacy_speaker_id_as_unassigned() -> None:
+    request = TurnIngestRequest.model_validate(
+        {
+            "speaker_id": "   ",
+            "turn_id": "turn-003",
+            "utterance_text": "담당자 미정 상태입니다.",
+            "order": 3,
+        }
+    )
+
+    assert request.agent_id is None

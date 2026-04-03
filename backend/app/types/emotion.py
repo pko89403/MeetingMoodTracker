@@ -11,6 +11,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.types.identifiers import normalize_optional_agent_id
+
 EmotionLabel = Literal[
     "anger",
     "joy",
@@ -66,21 +68,15 @@ class TurnEmotionRequest(BaseModel):
     turn_id: str = Field(min_length=1)
     agent_id: str | None = Field(
         default=None,
-        min_length=1,
         validation_alias=AliasChoices("agent_id", "speaker_id"),
     )
     utterance_text: str = Field(min_length=1, max_length=4000)
 
-    @field_validator("agent_id")
+    @field_validator("agent_id", mode="before")
     @classmethod
     def normalize_agent_id(cls, value: str | None) -> str | None:
         """레거시 speaker_id 입력도 agent_id 규칙으로 정규화한다."""
-        if value is None:
-            return None
-        normalized = value.strip()
-        if normalized == "":
-            return None
-        return normalized
+        return normalize_optional_agent_id(value)
 
 
 class EmotionConfidenceValue(BaseModel):
