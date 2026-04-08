@@ -7,68 +7,59 @@ test.use({
   viewport: { width: 1600, height: 2200 },
 });
 
-test("issue #28 dashboard renders summary, charts, transcript timeline, and detail panel", async ({
+test("issue #28 flow board renders and links to timeline page", async ({
   page,
 }) => {
-  await page.goto(DASHBOARD_URL, { waitUntil: "networkidle" });
+  await page.goto(DASHBOARD_URL, { waitUntil: "domcontentloaded" });
 
-  await expect(page.getByRole("heading", { name: "회의 핵심 요약" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "회의 흐름 탐색" })).toBeVisible();
-  const timelineSection = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "회의 흐름 탐색" }),
-  });
+  await expect(page.getByTestId("flow-dashboard-root")).toBeVisible();
+  await expect(page.getByTestId("flow-stage-board")).toBeVisible();
+  await expect(page.getByTestId("brand-mark-flow")).toBeVisible();
+  await expect(page.locator(".react-flow").first()).toBeVisible();
+  await expect(page.getByText("Meeting flow dashboard")).toBeVisible();
+  await expect(page.getByText("Structured flow board")).toBeVisible();
+  await expect(page.getByTestId("meeting-hub-node")).toBeVisible();
+  await expect(page.getByTestId("flow-metric-overview")).toBeVisible();
+  await expect(page.getByTestId("flow-metric-sentiment")).toBeVisible();
+  await expect(page.getByTestId("flow-metric-rubric")).toBeVisible();
+  await expect(page.getByTestId("flow-mini-chart")).toHaveCount(0);
+  await expect(page.getByTestId("flow-view-tab")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByTestId("timeline-view-tab")).toBeVisible();
 
-  await expect(page.getByRole("button", { name: "긍부정" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "기본 감정" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "회의 시그널" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "종합 시그널" })).toBeVisible();
-  await expect(timelineSection.getByText("차트 해석 기준")).toHaveCount(0);
-  await expect(timelineSection.locator(".apexcharts-canvas").first()).toBeVisible();
-  const sentimentSeriesCount = await timelineSection.locator(".apexcharts-series").count();
-  expect(sentimentSeriesCount).toBeGreaterThanOrEqual(3);
-  await expect(timelineSection.getByText("positive", { exact: true })).toBeVisible();
-  await expect(timelineSection.getByText("negative", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("flow-search-button")).toBeVisible();
+  await expect(page.getByRole("button", { name: "전체 보기" })).toBeVisible();
+  await expect(page.getByTestId("agent-filter-all")).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("button", { name: "기본 감정" }).click();
-  await expect(timelineSection.locator(".apexcharts-canvas").first()).toBeVisible();
-  const emotionCurveCount = await timelineSection.locator(".apexcharts-series").count();
-  expect(emotionCurveCount).toBeGreaterThanOrEqual(8);
-  await expect(timelineSection.getByText("joy")).toBeVisible();
-  await expect(timelineSection.getByText("anger")).toBeVisible();
+  const aliceFilter = page.getByTestId("agent-filter-alice");
+  await aliceFilter.click({ force: true });
+  await expect(aliceFilter).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("agent-node-alice")).toBeVisible();
 
-  await page.getByRole("button", { name: "회의 시그널" }).click();
-  await expect(timelineSection.locator(".apexcharts-canvas").first()).toBeVisible();
-  const signalCurveCount = await timelineSection.locator(".apexcharts-series").count();
-  expect(signalCurveCount).toBeGreaterThanOrEqual(5);
-  const engagementLegend = timelineSection.getByRole("button", { name: /^engagement$/i });
-  await engagementLegend.click();
-  await expect(engagementLegend).toHaveAttribute("aria-pressed", "true");
-  await expect(timelineSection.locator(".apexcharts-series")).toHaveCount(1);
-  await expect(timelineSection.getByRole("button", { name: "전체 지표 보기" })).toBeVisible();
-  await engagementLegend.click();
-  expect(await timelineSection.locator(".apexcharts-series").count()).toBeGreaterThanOrEqual(5);
+  const turnNode = page.getByTestId("turn-node-1");
+  await turnNode.click({ force: true });
+  await expect(page.getByTestId("flow-detail-panel")).toContainText("Turn 1");
+  await expect(page.getByTestId("flow-detail-panel")).toContainText("Dominance");
 
-  await page.getByRole("button", { name: "종합 시그널" }).click();
-  await expect(timelineSection.locator(".apexcharts-canvas").first()).toBeVisible();
-  const rubricCurveCount = await timelineSection.locator(".apexcharts-series").count();
-  expect(rubricCurveCount).toBeGreaterThanOrEqual(3);
+  await page.getByTestId("timeline-view-tab").click();
+  await expect(page.getByTestId("timeline-page-root")).toBeVisible();
+  await expect(page.getByTestId("brand-mark-timeline")).toBeVisible();
+  await expect(page.getByTestId("timeline-view-tab")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByTestId("timeline-page-chart")).toBeVisible();
+  await expect(page.getByTestId("flow-view-tab")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("flow-mini-chart-tab-sentiment")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("flow-mini-chart-tab-emotions")).toBeVisible();
+  await page.getByTestId("flow-mini-chart-tab-signals").click();
+  await expect(page.getByTestId("flow-mini-chart-tab-signals")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("timeline-page-chart").locator(".apexcharts-canvas")).toBeVisible();
+  await expect(page).toHaveURL(/view=timeline/);
 
-  const rightRail = page.locator("aside");
-
-  const transcriptCards = rightRail
-    .locator("button")
-    .filter({ has: page.getByText(/^Turn \d+$/) });
-  await expect(transcriptCards.first()).toBeVisible();
-  expect(await transcriptCards.count()).toBeGreaterThan(0);
-
-  await expect(rightRail.getByRole("heading", { name: "턴별 대화 내용과 감정 흐름" })).toBeVisible();
-
-  await expect(page.getByRole("heading", { name: "발화 원문" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "시그널 분포" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "에이전트별 패턴 리포트" })).toHaveCount(0);
-
-  await page.screenshot({
-    path: "test-results/issue28-dashboard-full.png",
-    fullPage: true,
-  });
+  const bobFilter = page.getByTestId("agent-filter-bob");
+  await bobFilter.click({ force: true });
+  await expect(bobFilter).toHaveAttribute("aria-pressed", "true");
 });

@@ -1,0 +1,152 @@
+{
+  "project_id": "test-crash-validation",
+  "meeting_id": "test-crash-meeting",
+  "agent_id": "alice",
+  "updated_at": "2026-04-03T01:35:49.690479+00:00",
+  "turns": [
+    {
+      "project_id": "test-crash-validation",
+      "meeting_id": "test-crash-meeting",
+      "agent_id": "alice",
+      "turn_id": "turn-001",
+      "utterance_text": "오늘은 금요일 배포 전에 QA 리스크와 일정 상태를 짧게 점검합시다.",
+      "created_at": "2026-04-03T01:35:30.772570+00:00",
+      "order": 1,
+      "updated_at": "2026-04-03T01:35:30.772795+00:00",
+      "sentiment": {
+        "label": "POS",
+        "confidence": 0.92,
+        "evidence": "짧게 점검합시다"
+      },
+      "emotion": {
+        "emotions": {
+          "anger": {
+            "confidence": 2
+          },
+          "joy": {
+            "confidence": 5
+          },
+          "sadness": {
+            "confidence": 2
+          },
+          "neutral": {
+            "confidence": 85
+          },
+          "anxiety": {
+            "confidence": 10
+          },
+          "frustration": {
+            "confidence": 5
+          },
+          "excitement": {
+            "confidence": 8
+          },
+          "confusion": {
+            "confidence": 5
+          }
+        },
+        "meeting_signals": {
+          "tension": {
+            "confidence": 20
+          },
+          "alignment": {
+            "confidence": 80
+          },
+          "urgency": {
+            "confidence": 60
+          },
+          "clarity": {
+            "confidence": 85
+          },
+          "engagement": {
+            "confidence": 70
+          }
+        },
+        "emerging_emotions": [
+          {
+            "label": "concern",
+            "confidence": 55
+          },
+          {
+            "label": "optimism",
+            "confidence": 25
+          }
+        ]
+      }
+    },
+    {
+      "project_id": "test-crash-validation",
+      "meeting_id": "test-crash-meeting",
+      "agent_id": "alice",
+      "turn_id": "turn-004",
+      "utterance_text": "좋아요. 그러면 결제 검증을 오늘 오후 안에 마치고 저녁에 배포 여부를 확정하죠.",
+      "created_at": "2026-04-03T01:35:49.689951+00:00",
+      "order": 4,
+      "updated_at": "2026-04-03T01:35:49.690479+00:00",
+      "sentiment": {
+        "label": "POS",
+        "confidence": 0.95,
+        "evidence": "좋아요."
+      },
+      "emotion": {
+        "emotions": {
+          "anger": {
+            "confidence": 5
+          },
+          "joy": {
+            "confidence": 20
+          },
+          "sadness": {
+            "confidence": 5
+          },
+          "neutral": {
+            "confidence": 65
+          },
+          "anxiety": {
+            "confidence": 25
+          },
+          "frustration": {
+            "confidence": 15
+          },
+          "excitement": {
+            "confidence": 30
+          },
+          "confusion": {
+            "confidence": 10
+          }
+        },
+        "meeting_signals": {
+          "tension": {
+            "confidence": 30
+          },
+          "alignment": {
+            "confidence": 75
+          },
+          "urgency": {
+            "confidence": 85
+          },
+          "clarity": {
+            "confidence": 70
+          },
+          "engagement": {
+            "confidence": 60
+          }
+        },
+        "emerging_emotions": [
+          {
+            "label": "concern",
+            "confidence": 40
+          },
+          {
+            "label": "impatience",
+            "confidence": 35
+          },
+          {
+            "label": "relief",
+            "confidence": 20
+          }
+        ]
+      }
+    }
+  ]
+}

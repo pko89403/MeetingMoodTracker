@@ -1,0 +1,78 @@
+{
+  "project_id": "project-alpha",
+  "meeting_id": "meeting-issue27-demo",
+  "agent_id": "bob",
+  "updated_at": "2026-04-03T01:28:19.511450+00:00",
+  "turns": [
+    {
+      "project_id": "project-alpha",
+      "meeting_id": "meeting-issue27-demo",
+      "agent_id": "bob",
+      "turn_id": "turn-002",
+      "utterance_text": "일정은 가능하지만 QA 누락이 다시 생기면 출시가 밀릴 수 있어요.",
+      "created_at": "2026-04-03T01:25:00+00:00",
+      "order": 2,
+      "updated_at": "2026-04-03T01:28:19.511450+00:00",
+      "sentiment": {
+        "label": "NEG",
+        "confidence": 0.91,
+        "evidence": "출시가 밀릴 수 있어요"
+      },
+      "emotion": {
+        "emotions": {
+          "anger": {
+            "confidence": 0
+          },
+          "joy": {
+            "confidence": 4
+          },
+          "sadness": {
+            "confidence": 6
+          },
+          "neutral": {
+            "confidence": 28
+          },
+          "anxiety": {
+            "confidence": 32
+          },
+          "frustration": {
+            "confidence": 16
+          },
+          "excitement": {
+            "confidence": 0
+          },
+          "confusion": {
+            "confidence": 14
+          }
+        },
+        "meeting_signals": {
+          "tension": {
+            "confidence": 37
+          },
+          "alignment": {
+            "confidence": 42
+          },
+          "urgency": {
+            "confidence": 85
+          },
+          "clarity": {
+            "confidence": 63
+          },
+          "engagement": {
+            "confidence": 58
+          }
+        },
+        "emerging_emotions": [
+          {
+            "label": "concern",
+            "confidence": 83
+          },
+          {
+            "label": "doubt",
+            "confidence": 71
+          }
+        ]
+      }
+    }
+  ]
+}

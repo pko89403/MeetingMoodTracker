@@ -1,0 +1,78 @@
+{
+  "project_id": "project-alpha",
+  "meeting_id": "meeting-issue27-live-vpn",
+  "agent_id": "bob",
+  "updated_at": "2026-04-03T01:33:56.928281+00:00",
+  "turns": [
+    {
+      "project_id": "project-alpha",
+      "meeting_id": "meeting-issue27-live-vpn",
+      "agent_id": "bob",
+      "turn_id": "turn-002",
+      "utterance_text": "일정은 가능하지만 QA 누락이 다시 생기면 출시가 밀릴 수 있어요.",
+      "created_at": "2026-04-03T01:33:56.928119+00:00",
+      "order": 2,
+      "updated_at": "2026-04-03T01:33:56.928281+00:00",
+      "sentiment": {
+        "label": "NEUTRAL",
+        "confidence": 0.87,
+        "evidence": "QA 누락이 다시 생기면 출시가 밀릴 수 있어요"
+      },
+      "emotion": {
+        "emotions": {
+          "anger": {
+            "confidence": 5
+          },
+          "joy": {
+            "confidence": 2
+          },
+          "sadness": {
+            "confidence": 20
+          },
+          "neutral": {
+            "confidence": 40
+          },
+          "anxiety": {
+            "confidence": 65
+          },
+          "frustration": {
+            "confidence": 50
+          },
+          "excitement": {
+            "confidence": 5
+          },
+          "confusion": {
+            "confidence": 15
+          }
+        },
+        "meeting_signals": {
+          "tension": {
+            "confidence": 55
+          },
+          "alignment": {
+            "confidence": 60
+          },
+          "urgency": {
+            "confidence": 70
+          },
+          "clarity": {
+            "confidence": 75
+          },
+          "engagement": {
+            "confidence": 60
+          }
+        },
+        "emerging_emotions": [
+          {
+            "label": "concern",
+            "confidence": 80
+          },
+          {
+            "label": "impatience",
+            "confidence": 45
+          }
+        ]
+      }
+    }
+  ]
+}

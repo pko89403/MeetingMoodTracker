@@ -1,0 +1,52 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="panel" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(138 92) rotate(54.1623) scale(274.907)">
+      <stop offset="0" stop-color="#1A1C28"/>
+      <stop offset="0.58" stop-color="#10121A"/>
+      <stop offset="1" stop-color="#07080D"/>
+    </radialGradient>
+    <linearGradient id="frame" x1="36" y1="40" x2="260" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C7CFF"/>
+      <stop offset="0.52" stop-color="#5E5CE6"/>
+      <stop offset="1" stop-color="#C64AFF"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="62" y1="142" x2="222" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10B981"/>
+      <stop offset="0.46" stop-color="#7C7CFF"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <linearGradient id="moodWord" x1="480" y1="82" x2="650" y2="164" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C7CFF"/>
+      <stop offset="1" stop-color="#C64AFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" rx="44" fill="#050507"/>
+  <g transform="translate(44 44)">
+    <rect x="0" y="0" width="272" height="272" rx="78" fill="url(#panel)"/>
+    <rect x="6" y="6" width="260" height="260" rx="72" stroke="url(#frame)" stroke-opacity="0.92" stroke-width="12"/>
+    <rect x="30" y="30" width="212" height="212" rx="52" stroke="white" stroke-opacity="0.06" stroke-width="2"/>
+    <path d="M56 102C77.9256 84.6667 103.074 76 131.444 76C159.815 76 185 84.6667 207 102" stroke="url(#frame)" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="56" cy="102" r="11" fill="#10B981"/>
+    <circle cx="132" cy="72" r="12" fill="#7C7CFF"/>
+    <circle cx="208" cy="102" r="11" fill="#FB7185"/>
+    <path d="M48 190H84L108 150L132 208L158 158H184L216 126" stroke="url(#signal)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="48" cy="190" r="10" fill="#10B981"/>
+    <circle cx="216" cy="126" r="10" fill="#FB7185"/>
+    <path d="M48 222H216" stroke="white" stroke-opacity="0.08" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(372 96)">
+    <text x="0" y="74" fill="#F8FAFC" font-family="Pretendard, Sora, 'Avenir Next', sans-serif" font-size="76" font-weight="700" letter-spacing="-1.4">
+      <tspan>Meeting </tspan>
+      <tspan fill="url(#moodWord)">Mood</tspan>
+      <tspan> Tracker</tspan>
+    </text>
+    <text x="2" y="132" fill="#94A3B8" font-family="Pretendard, 'SF Pro Display', sans-serif" font-size="32" font-weight="500" letter-spacing="-0.3">
+      회의 감정 흐름 분석을 위한 conversation intelligence mark
+    </text>
+    <rect x="0" y="168" width="416" height="10" rx="5" fill="#111827"/>
+    <rect x="0" y="168" width="248" height="10" rx="5" fill="url(#frame)"/>
+    <text x="0" y="228" fill="#CBD5E1" font-family="Pretendard, 'SF Pro Display', sans-serif" font-size="30" font-weight="600" letter-spacing="-0.4">
+      Talk • Mood • Timeline
+    </text>
+  </g>
+</svg>

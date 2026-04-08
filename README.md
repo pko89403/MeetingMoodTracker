@@ -1,90 +1,110 @@
-# MeetingMoodTracker
+# Meeting Mood Tracker
 
-회의 대화 데이터를 분석해 **주제(topic)**, **감정 분포(sentiment)**, **정서/회의 시그널(emotion & meeting signals)** 을 추출하고, 프로젝트-회의-화자-발화 단위로 저장/조회할 수 있는 서비스입니다.  
-백엔드는 **FastAPI + Azure OpenAI**, 프론트엔드는 **React + Vite**, 운영/검증용 보조 UI는 **Streamlit**으로 구성되어 있습니다.
+한국어 | [English](./README.en.md)
 
-## 주요 기능
+![Meeting Mood Tracker 로고](./frontend/public/brand/meeting-mood-tracker-lockup.png)
 
-- 회의록 전체 분석: `POST /api/v1/analyze`
-- 분석 과정 추적: `POST /api/v1/analyze/inspect`
-- SSE 스트리밍 로그 확인: `POST /api/v1/analyze/inspect/stream`
-- 단일 발화 감정 분류: `POST /api/v1/sentiment/turn`
-- 프로젝트/회의 기준 발화 저장: `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
-- 저장된 회의 overview / turns / agents 조회
-- 한국어 및 한/영 혼합 발화 중심 분석
+Meeting Mood Tracker는 회의 발화 데이터를 `프로젝트 → 회의 → 에이전트 → 발화 턴` 구조로 저장하고, 감정 흐름과 회의 시그널을 분석·시각화하는 conversation intelligence 저장소입니다. 백엔드는 FastAPI와 Azure OpenAI 기반 분석 파이프라인을 제공하고, 프론트엔드는 React Flow 및 Timeline UI로 회의 흐름을 탐색할 수 있게 구성되어 있습니다.
 
-## 저장소 구성
+## Screenshot
 
-```text
-.
-├── backend/                # FastAPI API, 분석 서비스, 테스트, Streamlit UI
-├── frontend/               # React/Vite 대시보드
-├── data/                   # 프로젝트/회의/화자/발화 JSON 저장소(실행 중 생성)
-├── docs/                   # 아키텍처/운영/환경설정 문서
-├── scripts/                # worktree setup, pre-commit 등 운영 스크립트
-├── feature_list.json       # 기능 진행 상태
-└── init.sh                 # 로컬 초기 셋업 가이드 스크립트
-```
+![Meeting Mood Tracker main dashboard using project fixture data](./docs/screenshots/frontend-main-dashboard.png)
 
-## 기술 스택
+`project-frontend-demo / meeting-issue27-short-live` 테스트 데이터로 렌더링한 메인 대시보드 화면입니다.
 
-### Backend
+## Why This Repo
 
-- Python 3.12
-- FastAPI / Uvicorn
-- Pydantic
-- Azure OpenAI (`openai` SDK)
-- uv
-- pytest / Ruff
+- 회의 전체 요약뿐 아니라 턴 단위 감정 흐름과 agent 패턴까지 추적합니다.
+- project-aware 저장 모델을 통해 회의 데이터를 누적하고 조회 API로 재사용할 수 있습니다.
+- 한국어 중심 회의 데이터와 한/영 혼합 발화(code-switching)를 기본 시나리오로 다룹니다.
+- 분석 결과, inspect 디버깅 경로, 시각화 UI가 하나의 흐름으로 연결됩니다.
 
-### Frontend
+## Highlights
 
-- React 18
-- Vite
-- Material UI
-- Radix UI
-- Recharts
+- `POST /api/v1/analyze`
+  - 회의록 전체를 topic / sentiment / emotion / correlation로 분석합니다.
+- `POST /api/v1/analyze/inspect`, `POST /api/v1/analyze/inspect/stream`
+  - 분석 단계와 로그를 REST/SSE로 추적합니다.
+- `POST /api/v1/sentiment/turn`
+  - 단일 발화(turn)에 대한 감정 라벨과 confidence를 반환합니다.
+- `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+  - project-aware 저장 경로로 turn 분석 결과를 저장합니다.
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}`
+  - 회의 overview 집계를 반환합니다.
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+  - timeline/detail 패널용 turn 목록을 반환합니다.
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/agents`
+  - agent aggregate와 패턴 요약을 반환합니다.
+- React Flow 보드 + Timeline 페이지
+  - 회의 관계도와 감정 시계열을 각각의 화면에서 탐색합니다.
 
-## 빠른 시작
+## Tech Stack
 
-### 1) 필수 준비
+- Backend: FastAPI, Pydantic, Python 3.12, uv
+- LLM: Azure OpenAI, structured output(JSON schema)
+- Frontend: React, Vite, Tailwind, React Flow, ApexCharts
+- Storage: JSON repository 기반 project-aware 저장 구조
+- Quality Gate: custom harness, Ruff, Pytest, Playwright
 
-- Python 3.12+
-- Node.js / npm
+## Repository Layout
+
+- `backend/`
+  - FastAPI 서버, 분석 서비스, 저장소, 테스트, Streamlit inspect UI
+- `frontend/`
+  - React 기반 대시보드, Flow 보드, Timeline UI
+- `docs/`
+  - 아키텍처, 설계 원칙, 환경 설정, 운영 가이드
+- `data/`
+  - project-aware JSON 저장 데이터
+- `scripts/`
+  - worktree setup, pre-commit 보조 스크립트
+- `frontend/public/brand/`
+  - 로고, 파비콘 등 브랜드 자산
+
+## Quick Start
+
+### Prerequisites
+
+- Python `3.12+`
 - `uv`
-- Azure OpenAI 사용 가능 환경
+- Node.js `18+`
+- Azure OpenAI 접근 정보
+- 선택: Docker / Docker Compose
 
-### 2) 환경 변수 준비
-
-백엔드는 `backend/example.env`를 템플릿으로 사용합니다.
+### 1. 환경 변수 준비
 
 ```bash
 cp backend/example.env backend/dev.env
 ```
 
-필수 값:
+`backend/dev.env`에 아래 값을 채웁니다.
 
 - `LLM_API_KEY`
 - `LLM_ENDPOINT`
 - `LLM_MODEL_NAME`
 - `LLM_DEPLOYMENT_NAME`
+- 선택: `LLM_API_VERSION`, `LLM_MODEL_VERSION`
 
-자세한 설명은 `docs/ENVIRONMENT_GUIDE.md`를 참고하세요.
+자세한 규칙은 [`docs/ENVIRONMENT_GUIDE.md`](./docs/ENVIRONMENT_GUIDE.md)를 참조하세요.
 
-### 3) 로컬 실행
-
-#### Backend
+### 2. worktree / 로컬 환경 준비
 
 ```bash
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+./scripts/setup_worktree.sh
 ```
 
-- API 문서: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/healthz`
+이 스크립트는 worktree 전용 `.venv`를 준비하고 feature-issue 동기화까지 수행합니다.
 
-#### Frontend
+### 3. 백엔드 실행
+
+```bash
+./backend/scripts/run_api.sh
+```
+
+- 기본 포트: `8000`
+- health check: `http://localhost:8000/healthz`
+
+### 4. 프론트엔드 실행
 
 ```bash
 cd frontend
@@ -92,273 +112,112 @@ npm install
 npm run dev
 ```
 
-- 기본 개발 서버: `http://localhost:5173`
-- 백엔드와 함께 사용할 때는 `http://localhost:8000`이 열려 있어야 합니다.
+브라우저에서 `http://localhost:5173`으로 접속합니다.
 
-#### Streamlit 분석 콘솔
+### 5. 빠른 검증
 
 ```bash
-cd backend
-./scripts/run_ui.sh
+curl http://localhost:8000/healthz
 ```
 
-- 기본 주소: `http://localhost:8501`
-- `ANALYZE_API_BASE_URL` 기본값: `http://localhost:8000`
+정상 응답 예시:
 
-### 4) Docker로 함께 실행
+```json
+{"status":"ok"}
+```
 
-저장소 루트에서 실행합니다.
+## Docker Development
+
+로컬 개발용 Docker Compose는 루트의 `docker-compose.dev.yml`을 사용합니다.
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-실행 후:
+기본 포트:
 
-- Backend API: `http://localhost:8000`
+- Backend: `http://localhost:8000`
 - Frontend: `http://localhost:5173`
 
-## 주요 API
+상위 리포지토리에서 서브모듈로 사용할 경우 템플릿은 [`docs/templates/docker-compose.parent.api.yml`](./docs/templates/docker-compose.parent.api.yml)을 참고하세요.
 
-### 회의록 전체 분석
+## Development Workflow
 
-`POST /api/v1/analyze`
-
-```json
-{
-  "meeting_id": "meeting-001",
-  "text": "오늘 배포 일정과 QA 리스크를 점검합시다."
-}
-```
-
-### 분석 과정 포함 응답
-
-`POST /api/v1/analyze/inspect`
-
-- 최종 결과와 함께 내부 단계/로그를 반환합니다.
-
-### 분석 과정 SSE 스트림
-
-`POST /api/v1/analyze/inspect/stream`
-
-- `start`, `log`, `result`, `done`, `error` 이벤트를 순차적으로 전달합니다.
-
-### 단일 발화 감정 분류
-
-`POST /api/v1/sentiment/turn`
-
-```json
-{
-  "meeting_id": "meeting-001",
-  "turn_id": "turn-014",
-  "utterance_text": "이 방향이면 일정은 맞출 수 있을 것 같습니다."
-}
-```
-
-### 프로젝트/회의 기준 발화 저장
-
-`POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
-
-```json
-{
-  "agent_id": "alice",
-  "turn_id": "turn-001",
-  "utterance_text": "회귀 테스트가 아직 남아 있습니다.",
-  "order": 1
-}
-```
-
-관련 조회 API:
-
-- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}`
-- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
-- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/agents`
-- `GET /api/v1/env`
-- `GET /healthz`
-
-## 데이터 저장 구조
-
-발화 저장은 현재 DB가 아닌 JSON 기반 계층 저장소를 사용합니다.
-
-```text
-data/
-  projects/
-    {project_id}/
-      meta.json
-      meetings/
-        {meeting_id}/
-          meta.json
-          agents/
-            {agent_id}/
-              turns.json
-```
-
-식별자 기준은 `project_id + meeting_id + agent_id + turn_id` 조합입니다.
-
-## 개발자용 명령어
-
-### Worktree 셋업
-
-```bash
-./scripts/setup_worktree.sh
-```
-
-### 전체 초기 확인
+### 전체 초기화 + 기본 검증
 
 ```bash
 ./init.sh
 ```
 
-### Backend 품질 확인
+이 스크립트는 다음을 순서대로 수행합니다.
+
+- backend `uv sync`
+- backend `ruff`, `pytest`
+- frontend 의존성 설치
+- 개발 서버 실행 가이드 출력
+
+### 자주 쓰는 명령어
 
 ```bash
-cd backend
-uv run ruff check .
-uv run pytest tests/ -v
+# backend lint
+cd backend && uv run ruff check .
+
+# backend test
+cd backend && uv run pytest tests/ -v
+
+# frontend build
+cd frontend && npm run build
+
+# issue sync
+cd backend && uv run python scripts/sync_feature_issues.py
+
+# Streamlit inspect UI
+./backend/scripts/run_ui.sh
 ```
 
----
+## API Overview
 
-## 📖 Core API Guide
+루트 README는 입문용 개요만 제공합니다. 자세한 스키마와 분석 항목은 아래 문서를 참고하세요.
 
-### 1. 회의록 종합 분석 (Analyze Mood)
-회의록 전체 텍스트를 입력받아 주제, 감정, 정서 신호를 한 번에 분석합니다.
+- [`backend/README.md`](./backend/README.md)
+- [`docs/DESIGN.md`](./docs/DESIGN.md)
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
 
-- **Endpoint**: `POST /api/v1/analyze`
-- **Request**:
-  ```json
-  {
-    "meeting_id": "m_20260401_001",
-    "text": "오늘 배포 일정에 대해 논의합시다. 현재 리스크가 좀 있네요."
-  }
-  ```
-- **Response**:
-  - `topic`: 핵심 주제 키워드 (쉼표 구분 문자열)
-  - `sentiment`: 긍정/부정/중립 분포 (`0~100` 정수 점수)
-  - `emotion`: 8개 기본 정서 및 5개 회의 시그널 수치
+핵심 엔드포인트만 빠르게 보면:
 
-### 2. 발화 턴 단위 감정 분류 (Turn Sentiment)
-단일 발화 문장에 대한 긍/부정/중립 여부를 판단합니다.
+- `GET /healthz`
+- `POST /api/v1/analyze`
+- `POST /api/v1/analyze/inspect`
+- `POST /api/v1/analyze/inspect/stream`
+- `POST /api/v1/sentiment/turn`
+- `POST /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}`
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/turns`
+- `GET /api/v1/projects/{project_id}/meetings/{meeting_id}/agents`
 
-- **Endpoint**: `POST /api/v1/sentiment/turn`
-- **Request**:
-  ```json
-  {
-    "meeting_id": "m_001",
-    "turn_id": "t_014",
-    "utterance_text": "이 제안은 정말 획기적이네요! 찬성합니다."
-  }
-  ```
-- **Response**:
-  - `label`: `POS`, `NEG`, `NEUTRAL` 중 하나
-  - `confidence`: 신뢰도 (`0.0 ~ 1.0`)
+## Documentation Map
 
----
+- [`docs/REPOSITORY_DETAIL.md`](./docs/REPOSITORY_DETAIL.md)
+  - GitHub About / 저장소 소개문 초안
+- [`docs/ENVIRONMENT_GUIDE.md`](./docs/ENVIRONMENT_GUIDE.md)
+  - `dev.env`, `prod.env`, `APP_ENV` 운영 규칙
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+  - 계층 구조, 저장 모델, 조회/분석 흐름
+- [`docs/DESIGN.md`](./docs/DESIGN.md)
+  - 도메인 목표와 API 설계 원칙
+- [`docs/AGENT_OPERATIONS_GUIDE.md`](./docs/AGENT_OPERATIONS_GUIDE.md)
+  - agent/workflow 운영 규칙
+- [`docs/QUALITY_SCORE.md`](./docs/QUALITY_SCORE.md)
+  - harness / lint / validator 기준
 
-## 📊 분석 항목 상세 정의 (Analysis Items)
+## Operational Notes
 
-사용자는 분석 결과로 반환되는 각 수치를 아래와 같은 의미로 해석할 수 있습니다.
+- Azure OpenAI 방화벽 정책이 허용되어 있어야 실제 LLM 호출이 동작합니다.
+- 자해/자살/혐오 표현 등은 Azure Content Filter로 인해 `502`가 발생할 수 있습니다.
+- 저장소 전반의 문서와 운영 문구는 한국어 우선 원칙을 따릅니다.
 
-### 1. 주제 (Topic)
-- 회의록 전체에서 논의된 핵심 의제를 추출합니다. 여러 주제가 있을 경우 쉼표(`,`)로 구분됩니다.
+## Contributing Notes
 
-### 2. 감정 분포 (Sentiment)
-회의의 전반적인 분위기를 3가지 축으로 수치화합니다. (합계 100)
-- **Positive**: 긍정적, 낙관적, 또는 생산적인 분위기
-- **Negative**: 부정적, 비판적, 또는 냉소적인 분위기
-- **Neutral**: 감정이 배제된 중립적, 사실 전달 위주의 분위기
-
-### 3. 통합 정서 분석 (Emotion)
-회의 도메인에 특화된 상세 정서와 신호를 분석합니다.
-
-#### **8개 기본 정서 (Base Emotions)**
-화자의 발화에 내포된 보편적인 심리 상태를 측정합니다.
-- **Anger (분노)**: 강한 불만, 거부감, 또는 공격적인 태도가 포착되는 상태
-- **Joy (기쁨)**: 만족감, 성취감, 또는 긍정적인 유대감이 나타나는 상태
-- **Sadness (슬픔)**: 실망, 상실감, 또는 침체된 분위기가 느껴지는 상태
-- **Neutral (중립)**: 감정적 동요 없이 객관적 사실이나 정보를 전달하는 상태
-- **Anxiety (불안)**: 우려, 걱정, 또는 결과에 대한 초조함이 포착되는 상태
-- **Frustration (좌절)**: 진행의 장애로 인한 답답함이나 무력감이 나타나는 상태
-- **Excitement (흥분)**: 높은 기대감, 열정, 또는 고양된 에너지가 감지되는 상태
-- **Confusion (혼란)**: 정보의 부족이나 모순으로 인해 이해가 어려운 당혹스러운 상태
-
-#### **5개 회의 시그널 (Meeting Signals)**
-회의의 역동성과 생산성을 측정하는 핵심 지표입니다.
-- **Tension (긴장도)**: 의견 대립, 갈등, 또는 심리적 압박의 정도
-- **Alignment (합의도)**: 의견 일치, 방향성 공유, 또는 상호 동의의 수준
-- **Urgency (긴급도)**: 사안의 시급성, 마감 압박, 또는 빠른 실행 요구 정도
-- **Clarity (명확도)**: 논의 주제나 결론의 구체성 및 참석자들의 이해 수준
-- **Engagement (참여도)**: 대화의 활발함, 적극적인 피드백, 또는 협력적 태도
-
-#### **추가 발굴 정서 (Emerging Emotions)**
-기본 8정서 외에 회의 맥락에서 중요하게 포착될 수 있는 **12가지 추가 정서 후보군(Set)** 중 가장 두드러지는 항목을 최대 3개까지 선별하여 추출합니다.
-
-- **부정적/방어적 시그널**:
-  - `resentment`(억울함/원망): 부당한 처우나 상황에 대한 불만
-  - `skepticism`(회의감): 실효성이나 가능성에 대한 냉소적인 태도
-  - `discouragement`(낙담): 의욕 상실이나 무력감을 느끼는 상태
-  - `resignation`(체념): 상황 개선을 포기하고 받아들이는 상태
-  - `defensiveness`(방어적 태도): 비판에 대해 책임을 회피하거나 자기를 보호하려는 태도
-  - `distrust`(불신): 타인의 의도나 정보의 신뢰성에 대한 의심
-- **불안/긴박 시그널**:
-  - `concern`(우려): 잠재적 리스크나 문제에 대한 걱정
-  - `fatigue`(피로): 장기화된 논의나 업무 과중으로 인한 지친 상태
-  - `doubt`(의구심): 확신이 부족하고 주저하는 상태
-  - `impatience`(조급함): 빠른 결론이나 성과를 독촉하는 심리 상태
-- **긍정적/해소 시그널**:
-  - `relief`(안도): 리스크 해소나 합의 도달 후 느끼는 안심
-  - `optimism`(낙관): 향후 진행 방향에 대한 긍정적인 기대감
-
----
-
-### Streamlit 분석 콘솔
-API를 직접 호출하지 않고 웹 화면에서 텍스트를 분석하고 결과를 시각화할 수 있습니다.
-
-- **실행**: `./scripts/run_ui.sh` (기본 포트: 8501)
-- **주요 기능**:
-  - 분석 로그 실시간 스트리밍 (SSE)
-  - 세션 내 분석 히스토리 저장 및 재조회 (브라우저 세션 메모리 기반)
-  - 감정 분포 차트 시각화
-
----
-
-## 🛠️ For Developers (Internal)
-
-### 1. 분석 아키텍처 (Analyze Fan-out)
-`/analyze` 엔드포인트는 성능 최적화를 위해 3개의 독립적인 LLM 브랜치를 병렬로 실행합니다.
-- **Topic Branch**: 의제 추출 (`reasoning_effort=none`)
-- **Sentiment Branch**: 감정 분포 추출 (`reasoning_effort=none`)
-- **Emotion Branch**: **1-stage 통합 추론** (8정서 + 5시그널, `reasoning_effort=none`)
-- **최적화**: 모든 분석은 `evidence`(근거 문장) 생성을 제외하고 수치 데이터만 즉시 추출하도록 튜닝되어 있습니다.
-
-### 2. 환경 설정 (ENV)
-`example.env`를 복사하여 `dev.env` 또는 `prod.env`를 생성해 사용합니다.
-- `LLM_API_KEY`: Azure OpenAI API 키
-- `LLM_ENDPOINT`: Azure OpenAI 엔드포인트 URL
-- `LLM_DEPLOYMENT_NAME`: 모델 배포 이름
-
-### 3. 개발 도구
-- **Worktree Setup**: `./scripts/setup_worktree.sh`
-- **Issue Sync**: `uv run python scripts/sync_feature_issues.py`
-- **Offline Evaluation**: `scripts/evaluate_sentiment_with_judge.py`
-- **Project Skills**: `.agents/skills/branch-pr-workflow`, `.agents/skills/commit-push-pr`
-
-### 4. 저장 모델 로드맵 (Issue #26)
-- 영속 저장의 canonical 식별자는 `project_id -> meeting_id -> agent_id -> turn_id` 계층입니다.
-- 저장소 책임은 `app/repo/` 레이어에 배치하며, 초기 구현은 JSON 파일 기반 repository를 기준으로 설계합니다.
-- JSON 경로 초안:
-  - `data/projects/{project_id}/meta.json`
-  - `data/projects/{project_id}/meetings/{meeting_id}/meta.json`
-  - `data/projects/{project_id}/meetings/{meeting_id}/agents/{agent_id}/turns.json`
-  - `data/projects/{project_id}/meetings/{meeting_id}/aggregates.json` (선택)
-- 기본 정책은 **raw turn result 우선 보존 + aggregate는 조회 시 계산**입니다.
-- **현재 공개 API 계약은 아직 project-aware로 전환되지 않았습니다.**
-  - `POST /api/v1/analyze`, `POST /api/v1/sentiment/turn` 요청 본문은 현재도 `meeting_id` 중심입니다.
-  - `speaker_id`는 일부 요청 타입에 남아 있는 legacy 필드이며, 저장 모델 기준 canonical 명칭은 `agent_id`입니다.
-
----
-
-## ⚠️ 운영 시 유의사항
-- **네트워크**: Azure OpenAI 리소스의 방화벽 정책이 허용되어 있어야 합니다.
-- **필터링**: 자해/자살/혐오 표현 등은 Azure Content Filter에 의해 차단되어 `502` 에러를 반환할 수 있습니다.
-- **한국어 우선**: 모든 시스템 프롬프트 및 데이터 처리는 한국어 및 한/영 혼합 발화에 최적화되어 있습니다.
+- 새로운 worktree나 세션에서는 먼저 `./scripts/setup_worktree.sh`를 실행하세요.
+- 기능 구현은 `feature_list.json`의 현재 목표와 GitHub issue 동기화 규칙을 따릅니다.
+- 아키텍처나 기능 계약이 바뀌면 `README.md`와 `docs/`를 함께 갱신해야 합니다.

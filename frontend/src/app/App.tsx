@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { Dashboard } from "./components/Dashboard";
+import { BrandMark } from "./components/BrandMark";
+import type { DashboardView } from "./components/DashboardViewTabs";
 
 type MeetingSelection = {
   projectId: string;
   meetingId: string;
+  view: DashboardView;
 };
 
 function readSelectionFromUrl(): MeetingSelection {
   const params = new URLSearchParams(window.location.search);
+  const rawView = params.get("view");
   return {
     projectId: params.get("project_id")?.trim() ?? "",
     meetingId: params.get("meeting_id")?.trim() ?? "",
+    view: rawView === "timeline" ? "timeline" : "flow",
   };
 }
 
@@ -27,6 +32,12 @@ function writeSelectionToUrl(selection: MeetingSelection) {
     url.searchParams.set("meeting_id", selection.meetingId);
   } else {
     url.searchParams.delete("meeting_id");
+  }
+
+  if (selection.view === "timeline") {
+    url.searchParams.set("view", selection.view);
+  } else {
+    url.searchParams.delete("view");
   }
 
   window.history.pushState({}, "", url.toString());
@@ -52,76 +63,88 @@ function MeetingInput({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] px-4 py-10">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center justify-center">
-      <form
-        className="w-full max-w-xl rounded-[28px] border border-white/70 bg-white/90 p-8 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.28)] backdrop-blur"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (isDisabled) {
-            return;
-          }
+        <form
+          className="w-full max-w-xl rounded-[28px] border border-white/70 bg-white/90 p-8 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.28)] backdrop-blur"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (isDisabled) {
+              return;
+            }
 
-          onEnter({
-            projectId: projectId.trim(),
-            meetingId: meetingId.trim(),
-          });
-        }}
-      >
-        <div className="mb-8">
-          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
-            Project-aware meeting dashboard
-          </span>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
-            Meeting Mood Tracker
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            저장된 회의 데이터를 불러와 감정 타임라인, 회의 요약, 에이전트 리포트를 한 화면에서 확인합니다.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {["Emotion timeline", "Topic summary", "Agent report"].map((item) => (
-              <span
-                key={item}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <label className="mb-2 block text-sm font-semibold text-slate-700">
-          Project ID
-        </label>
-        <input
-          type="text"
-          placeholder="예: project-frontend-demo"
-          value={projectId}
-          onChange={(event) => setProjectId(event.target.value)}
-          className="mb-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100"
-        />
-
-        <label className="mb-2 block text-sm font-semibold text-slate-700">
-          Meeting ID
-        </label>
-        <input
-          type="text"
-          placeholder="예: meeting-issue27-short-live"
-          value={meetingId}
-          onChange={(event) => setMeetingId(event.target.value)}
-          className="mb-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100"
-        />
-
-        <p className="mb-6 text-xs leading-6 text-slate-500">
-          URL query params도 지원합니다: <span className="font-mono">?project_id=...&meeting_id=...</span>
-        </p>
-
-        <button
-          type="submit"
-          disabled={isDisabled}
-          className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_-18px_rgba(15,23,42,0.9)] transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            onEnter({
+              projectId: projectId.trim(),
+              meetingId: meetingId.trim(),
+              view: initialSelection.view,
+            });
+          }}
         >
-          회의 대시보드 보기
-        </button>
-      </form>
+          <div className="mb-8">
+            <div className="flex items-start gap-4">
+              <BrandMark
+                className="shrink-0"
+                showText={false}
+                size="lg"
+                testId="brand-mark-entry"
+                tone="dark"
+              />
+              <div className="min-w-0">
+                <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+                  Project-aware meeting dashboard
+                </span>
+                <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
+                  Meeting Mood Tracker
+                </h1>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  저장된 회의 데이터를 React Flow 기반 flow canvas와 timeline 화면으로 불러와, 대화의 감정 흐름과 agent 관계를 한 화면에서 탐색합니다.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["Meeting flow graph", "Timeline page", "Agent lanes"].map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
+            Project ID
+          </label>
+          <input
+            type="text"
+            placeholder="예: project-frontend-demo"
+            value={projectId}
+            onChange={(event) => setProjectId(event.target.value)}
+            className="mb-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100"
+          />
+
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
+            Meeting ID
+          </label>
+          <input
+            type="text"
+            placeholder="예: meeting-issue27-short-live"
+            value={meetingId}
+            onChange={(event) => setMeetingId(event.target.value)}
+            className="mb-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100"
+          />
+
+          <p className="mb-6 text-xs leading-6 text-slate-500">
+            URL query params도 지원합니다: <span className="font-mono">?project_id=...&meeting_id=...</span>
+          </p>
+
+          <button
+            type="submit"
+            disabled={isDisabled}
+            className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_-18px_rgba(15,23,42,0.9)] transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+          >
+            Flow 대시보드 열기
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -141,13 +164,21 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const baseTitle = "Meeting Mood Tracker";
+    document.title =
+      selection.projectId && selection.meetingId
+        ? `${selection.meetingId} · ${baseTitle}`
+        : baseTitle;
+  }, [selection.meetingId, selection.projectId]);
+
   const handleEnter = (nextSelection: MeetingSelection) => {
     writeSelectionToUrl(nextSelection);
     setSelection(nextSelection);
   };
 
   const handleReset = () => {
-    const nextSelection = { projectId: "", meetingId: "" };
+    const nextSelection = { projectId: "", meetingId: "", view: "flow" as DashboardView };
     writeSelectionToUrl(nextSelection);
     setSelection(nextSelection);
   };
@@ -157,10 +188,16 @@ export default function App() {
   }
 
   return (
-    <div className="antialiased text-slate-900 bg-slate-50 min-h-screen">
+    <div className="min-h-screen bg-[#0c0c0e] text-white antialiased">
       <Dashboard
         projectId={selection.projectId}
         meetingId={selection.meetingId}
+        view={selection.view}
+        onChangeView={(view) => {
+          const nextSelection = { ...selection, view };
+          writeSelectionToUrl(nextSelection);
+          setSelection(nextSelection);
+        }}
         onReset={handleReset}
       />
     </div>
