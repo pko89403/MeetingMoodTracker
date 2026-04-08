@@ -2,6 +2,60 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-04-08] 루트 README best-practice 재구성
+- **수행 내역**:
+  1. 루트 `README.md`를 입문 문서 역할에 맞게 전면 재구성.
+  2. 기존의 장문 분석 항목 사전식 설명을 제거하고, 개요 / highlights / quick start / docker / 개발 워크플로우 / 문서 맵 중심 구조로 정리.
+  3. 실제 실행 계약에 맞춰 `backend/example.env`, `./scripts/setup_worktree.sh`, `./backend/scripts/run_api.sh`, `docker-compose.dev.yml` 경로를 반영.
+  4. 세부 API 스키마와 설계 설명은 `backend/README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md`로 연결하도록 문서 역할을 분리.
+- **검증 결과**:
+  - README 내 주요 링크/경로 존재 여부 수동 검증 완료
+  - 코드 변경 없음
+---
+## [2026-04-08] Repository detail 문서 추가
+- **수행 내역**:
+  1. 저장소 소개문, 핵심 가치, 대상 사용자, 기술 스택, GitHub About용 짧은 설명/토픽을 정리한 `docs/REPOSITORY_DETAIL.md`를 추가.
+  2. `README.md` 상단에 repository detail 문서 링크를 연결해 GitHub 소개/온보딩에서 바로 재사용 가능하도록 정리.
+- **검증 결과**:
+  - 문서 링크 경로 수동 확인 (`README.md` -> `docs/REPOSITORY_DETAIL.md`)
+  - 코드/런타임 변경 없음
+---
+## [2026-04-03] React Flow stage 구조화 + swimlane 배경 적용
+- **수행 내역**:
+  1. fullscreen canvas 느낌을 줄이기 위해 Flow 화면을 `meeting-flow-shell` / `flow-stage-board` 기반의 중앙 framed stage로 재구성.
+  2. `AgentLaneBackdropNode`를 추가해 에이전트별 swimlane 배경과 lane header를 렌더링하도록 변경.
+  3. turn 노드를 lane 내부 chronology 기준으로 정렬해, 빈 화면보다 구조화된 board처럼 보이도록 조정.
+  4. 상단 rail과 우측 detail panel은 유지하면서 flow 영역만 더 밀도 있게 재배치.
+- **검증 결과**:
+  - `cd frontend && npm run build` 통과
+  - `cd frontend && npx playwright test tests/issue28-dashboard.spec.ts --reporter=line` 통과
+---
+## [2026-04-03] React Flow 상단 overlay mini chart 추가
+- **수행 내역**:
+  1. `MeetingFlowCanvas.tsx` top-center panel에 compact ApexCharts overlay를 추가.
+  2. 신규 `MeetingFlowMiniChart.tsx`에서 `긍부정 / 시그널 / 루브릭` 3개 mini view 탭을 제공.
+  3. chart는 현재 agent filter가 적용된 visible turns 기준으로 렌더링되며, point 클릭 시 selected turn과 detail panel이 연동되도록 구성.
+  4. `issue28-dashboard.spec.ts`를 mini chart 존재 및 탭 전환 기준으로 갱신.
+- **검증 결과**:
+  - `cd frontend && npm run build` 통과
+  - `cd frontend && npx playwright test tests/issue28-dashboard.spec.ts --reporter=line` 통과
+---
+## [2026-04-03] 기존 대시보드 React Flow 교체
+- **수행 내역**:
+  1. `@xyflow/react`를 추가하고 기존 카드/차트 중심 dashboard를 React Flow 기반 dark canvas로 교체.
+  2. 신규 컴포넌트를 추가:
+     - `MeetingFlowCanvas.tsx`
+     - `MeetingFlowNodes.tsx`
+     - `meetingFlowGraph.ts`
+  3. meeting / metric / agent / turn 데이터를 custom node로 매핑하고, 구조 링크와 turn chronology edge를 분리해 표현.
+  4. Cmd/Ctrl + K command palette, agent filter chip, 우측 detail panel을 overlay panel로 구성.
+  5. `issue28-dashboard.spec.ts`를 새 Flow UI 기준으로 갱신.
+- **검증 결과**:
+  - `cd frontend && npm run build` 통과
+  - `cd frontend && npx playwright test tests/issue28-dashboard.spec.ts --reporter=line` 통과
+- **비고**:
+  - 기존 query param 진입(`?project_id=...&meeting_id=...`)은 유지됩니다.
+---
 ## [2026-04-03] 이슈 #28 Timeline 지표 isolate 상호작용 추가
 - **수행 내역**:
   1. `TimelineChart.tsx` 하단 범례를 클릭 가능한 버튼으로 변경.
@@ -356,3 +410,5 @@
 - **검증 결과**:
   - `python3 -m py_compile app/runtime/analyze.py app/service/analyze_service.py app/types/analyze_inspect.py app/ui/analyze_console.py harness/validators/fastapi_contract_checker.py tests/test_analyze_inspect.py tests/architecture/test_fastapi_contracts.py` 통과
   - 현재 세션 실행 환경에는 `uv`, `ruff`, `pytest`가 설치되어 있지 않아 하네스/테스트 전체 실행은 미수행
+
+- 프론트엔드 Flow 대시보드 레이아웃을 정리해 중앙 stage 프레임, 에이전트 swimlane band, chronology 강조 edge로 빈 캔버스 느낌을 줄였습니다. 빌드와 Playwright dashboard spec까지 재검증했습니다.

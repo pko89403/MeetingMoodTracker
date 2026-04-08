@@ -1,0 +1,88 @@
+.meeting-flow-shell {
+  background:
+    radial-gradient(circle at top, rgba(94, 92, 230, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 22%),
+    #09090c;
+}
+
+.meeting-flow-board {
+  backdrop-filter: blur(8px);
+}
+
+.react-flow {
+  background: transparent;
+  --xy-edge-stroke: #2e2e32;
+  --xy-node-background-color-default: #161618;
+  --xy-node-border-default: #2e2e32;
+  --xy-node-color-default: #ffffff;
+  font-family:
+    Inter,
+    Geist,
+    "SF Pro Display",
+    "Segoe UI",
+    sans-serif;
+}
+
+.react-flow__renderer {
+  background:
+    radial-gradient(circle at center, rgba(94, 92, 230, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 24%);
+}
+
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.react-flow__controls {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(20, 20, 22, 0.84);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 80px -40px rgba(15, 23, 42, 0.8);
+}
+
+.react-flow__controls-button {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: #e2e8f0;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.react-flow__minimap {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background: rgba(20, 20, 22, 0.82);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  box-shadow: 0 24px 80px -40px rgba(15, 23, 42, 0.8);
+}
+
+.react-flow__node-agentLaneBackdrop {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.react-flow__node-agentLaneBackdrop .react-flow__handle {
+  display: none;
+}
+
+.react-flow__panel {
+  margin: 20px;
+}
+
+@keyframes flow-edge-dash {
+  from {
+    stroke-dashoffset: 240;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}

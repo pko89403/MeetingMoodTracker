@@ -1,0 +1,140 @@
+{
+  "project_id": "project-alpha",
+  "meeting_id": "meeting-issue27-short-live",
+  "agent_id": "carol",
+  "updated_at": "2026-04-03T01:36:02.401998+00:00",
+  "turns": [
+    {
+      "project_id": "project-alpha",
+      "meeting_id": "meeting-issue27-short-live",
+      "agent_id": "carol",
+      "turn_id": "turn-003",
+      "utterance_text": "로그인 관련 이슈는 해결됐고 남은 건 결제 플로우 수동 검증입니다.",
+      "created_at": "2026-04-03T01:35:43.476520+00:00",
+      "order": 3,
+      "updated_at": "2026-04-03T01:35:43.476805+00:00",
+      "sentiment": {
+        "label": "NEUTRAL",
+        "confidence": 0.78,
+        "evidence": "로그인 관련 이슈는 해결됐고"
+      },
+      "emotion": {
+        "emotions": {
+          "anger": {
+            "confidence": 2
+          },
+          "joy": {
+            "confidence": 10
+          },
+          "sadness": {
+            "confidence": 3
+          },
+          "neutral": {
+            "confidence": 70
+          },
+          "anxiety": {
+            "confidence": 8
+          },
+          "frustration": {
+            "confidence": 5
+          },
+          "excitement": {
+            "confidence": 12
+          },
+          "confusion": {
+            "confidence": 5
+          }
+        },
+        "meeting_signals": {
+          "tension": {
+            "confidence": 15
+          },
+          "alignment": {
+            "confidence": 75
+          },
+          "urgency": {
+            "confidence": 40
+          },
+          "clarity": {
+            "confidence": 80
+          },
+          "engagement": {
+            "confidence": 50
+          }
+        },
+        "emerging_emotions": [
+          {
+            "label": "relief",
+            "confidence": 65
+          }
+        ]
+      }
+    },
+    {
+      "project_id": "project-alpha",
+      "meeting_id": "meeting-issue27-short-live",
+      "agent_id": "carol",
+      "turn_id": "turn-006",
+      "utterance_text": "그 두 케이스는 제가 바로 확인하고 결과를 채널에 공유하겠습니다.",
+      "created_at": "2026-04-03T01:36:02.401817+00:00",
+      "order": 6,
+      "updated_at": "2026-04-03T01:36:02.401998+00:00",
+      "sentiment": {
+        "label": "POS",
+        "confidence": 0.9,
+        "evidence": "바로 확인하고 결과를 채널에 공유하겠습니다."
+      },
+      "emotion": {
+        "emotions": {
+          "anger": {
+            "confidence": 2
+          },
+          "joy": {
+            "confidence": 25
+          },
+          "sadness": {
+            "confidence": 3
+          },
+          "neutral": {
+            "confidence": 70
+          },
+          "anxiety": {
+            "confidence": 5
+          },
+          "frustration": {
+            "confidence": 4
+          },
+          "excitement": {
+            "confidence": 10
+          },
+          "confusion": {
+            "confidence": 3
+          }
+        },
+        "meeting_signals": {
+          "tension": {
+            "confidence": 10
+          },
+          "alignment": {
+            "confidence": 80
+          },
+          "urgency": {
+            "confidence": 50
+          },
+          "clarity": {
+            "confidence": 85
+          },
+          "engagement": {
+            "confidence": 60
+          }
+        },
+        "emerging_emotions": [
+          {
+            "label": "relief",
+            "confidence": 30
+          }
+        ]
+      }
+    }
+  ]
+}
