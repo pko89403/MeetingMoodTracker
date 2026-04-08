@@ -6,6 +6,12 @@
 
 Meeting Mood Tracker는 회의 발화 데이터를 `프로젝트 → 회의 → 에이전트 → 발화 턴` 구조로 저장하고, 감정 흐름과 회의 시그널을 분석·시각화하는 conversation intelligence 저장소입니다. 백엔드는 FastAPI와 Azure OpenAI 기반 분석 파이프라인을 제공하고, 프론트엔드는 React Flow 및 Timeline UI로 회의 흐름을 탐색할 수 있게 구성되어 있습니다.
 
+## Screenshot
+
+![Meeting Mood Tracker main dashboard using project fixture data](./docs/screenshots/frontend-main-dashboard.png)
+
+`project-frontend-demo / meeting-issue27-short-live` 테스트 데이터로 렌더링한 메인 대시보드 화면입니다.
+
 ## Why This Repo
 
 - 회의 전체 요약뿐 아니라 턴 단위 감정 흐름과 agent 패턴까지 추적합니다.

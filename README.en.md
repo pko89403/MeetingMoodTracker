@@ -6,6 +6,12 @@
 
 Meeting Mood Tracker is a conversation intelligence repository that stores meeting utterance data in a `project -> meeting -> agent -> turn` hierarchy and analyzes visual mood flow and meeting signals. The backend provides FastAPI services backed by Azure OpenAI analysis pipelines, while the frontend offers React Flow and Timeline views for exploring meeting dynamics.
 
+## Screenshot
+
+![Meeting Mood Tracker main dashboard using project fixture data](./docs/screenshots/frontend-main-dashboard.png)
+
+This is the main dashboard rendered with the `project-frontend-demo / meeting-issue27-short-live` fixture data.
+
 ## Why This Repo
 
 - It tracks not only meeting-level summaries, but also turn-level mood flow and agent patterns.

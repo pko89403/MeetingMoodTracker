@@ -2,6 +2,16 @@
 새로운 에이전트 세션이 시작될 때 문맥을 신속히 파악하기 위한 로그입니다. 큰 작업 주기가 끝날 때마다 에이전트가 직접 기록합니다.
 
 ---
+## [2026-04-08] 로컬 서버 실행 기반 메인 대시보드 스크린샷 추가
+- **수행 내역**:
+  1. `webapp-testing` 스킬의 `with_server.py`를 사용해 백엔드(`8001`)와 프론트엔드(`5175`)를 독립 포트로 직접 실행.
+  2. Python Playwright 자동화로 `project-frontend-demo / meeting-issue27-short-live` fixture 기반 메인 대시보드 화면을 캡처해 `docs/screenshots/frontend-main-dashboard.png`로 저장.
+  3. 루트 `README.md`, `README.en.md`의 대표 스크린샷을 메인 대시보드 화면으로 교체.
+- **검증 결과**:
+  - 로컬 서버 실행 후 Playwright 캡처 성공
+  - 생성 파일 확인: `docs/screenshots/frontend-main-dashboard.png` (`1680x1280`)
+  - overview/turns/agents 응답은 테스트 데이터 fixture로 주입해 연결된 meeting 화면 상태를 안정적으로 재현
+---
 ## [2026-04-08] 영문 루트 README 추가
 - **수행 내역**:
   1. 루트 README의 영문 버전 `README.en.md`를 추가하고, 현재 구조를 유지한 영어 안내 문서로 번역.
