@@ -138,8 +138,9 @@ fi
 
 # pre-commit 훅이 scripts/pre_commit_hook.sh를 실행하도록 설치한다.
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-HOOK_TARGET="${REPO_ROOT}/.git/hooks/pre-commit"
+HOOK_TARGET="$(git rev-parse --git-path hooks/pre-commit)"
 HOOK_SCRIPT="${REPO_ROOT}/scripts/pre_commit_hook.sh"
+mkdir -p "$(dirname "${HOOK_TARGET}")"
 if [[ ! -f "${HOOK_TARGET}" ]] || ! grep -q "pre_commit_hook.sh" "${HOOK_TARGET}" 2>/dev/null; then
   printf '#!/usr/bin/env bash\nexec "%s"\n' "${HOOK_SCRIPT}" > "${HOOK_TARGET}"
   chmod +x "${HOOK_TARGET}"
